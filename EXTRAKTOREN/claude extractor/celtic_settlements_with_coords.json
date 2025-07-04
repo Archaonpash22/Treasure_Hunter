@@ -1,0 +1,300 @@
+{
+  "metadata": {
+    "total_sites": 28,
+    "sites_with_coordinates": 24,
+    "sources": [
+      "Known Celtic Sites Database",
+      "Archaeological Database",
+      "Wikipedia Table"
+    ]
+  },
+  "results": [
+    {
+      "title": "Heuneburg",
+      "source": "Known Celtic Sites Database",
+      "coordinates": [
+        48.0833,
+        9.4167
+      ],
+      "country": "Germany",
+      "description": "Major Celtic oppidum/settlement in Germany",
+      "type": "verified_site"
+    },
+    {
+      "title": "Manching",
+      "source": "Known Celtic Sites Database",
+      "coordinates": [
+        48.7153,
+        11.5089
+      ],
+      "country": "Germany",
+      "description": "Major Celtic oppidum/settlement in Germany",
+      "type": "verified_site"
+    },
+    {
+      "title": "Bibracte",
+      "source": "Known Celtic Sites Database",
+      "coordinates": [
+        46.9333,
+        4.0333
+      ],
+      "country": "France",
+      "description": "Major Celtic oppidum/settlement in France",
+      "type": "verified_site"
+    },
+    {
+      "title": "Alesia",
+      "source": "Known Celtic Sites Database",
+      "coordinates": [
+        47.5372,
+        4.5003
+      ],
+      "country": "France",
+      "description": "Major Celtic oppidum/settlement in France",
+      "type": "verified_site"
+    },
+    {
+      "title": "Maiden Castle",
+      "source": "Known Celtic Sites Database",
+      "coordinates": [
+        50.695,
+        -2.4692
+      ],
+      "country": "UK",
+      "description": "Major Celtic oppidum/settlement in UK",
+      "type": "verified_site"
+    },
+    {
+      "title": "Danebury",
+      "source": "Known Celtic Sites Database",
+      "coordinates": [
+        51.1458,
+        -1.5119
+      ],
+      "country": "UK",
+      "description": "Major Celtic oppidum/settlement in UK",
+      "type": "verified_site"
+    },
+    {
+      "title": "Závist",
+      "source": "Known Celtic Sites Database",
+      "coordinates": [
+        49.9683,
+        14.3967
+      ],
+      "country": "Czech Republic",
+      "description": "Major Celtic oppidum/settlement in Czech Republic",
+      "type": "verified_site"
+    },
+    {
+      "title": "Staré Hradisko",
+      "source": "Known Celtic Sites Database",
+      "coordinates": [
+        49.6639,
+        17.0758
+      ],
+      "country": "Czech Republic",
+      "description": "Major Celtic oppidum/settlement in Czech Republic",
+      "type": "verified_site"
+    },
+    {
+      "title": "Glauberg",
+      "source": "Known Celtic Sites Database",
+      "coordinates": [
+        50.3167,
+        9.0
+      ],
+      "country": "Germany",
+      "description": "Major Celtic oppidum/settlement in Germany",
+      "type": "verified_site"
+    },
+    {
+      "title": "Mont Beuvray",
+      "source": "Known Celtic Sites Database",
+      "coordinates": [
+        46.9214,
+        4.0394
+      ],
+      "country": "France",
+      "description": "Major Celtic oppidum/settlement in France",
+      "type": "verified_site"
+    },
+    {
+      "title": "Titelberg",
+      "source": "Known Celtic Sites Database",
+      "coordinates": [
+        49.5419,
+        5.8639
+      ],
+      "country": "Luxembourg",
+      "description": "Major Celtic oppidum/settlement in Luxembourg",
+      "type": "verified_site"
+    },
+    {
+      "title": "Donnersberg",
+      "source": "Known Celtic Sites Database",
+      "coordinates": [
+        49.6247,
+        7.9294
+      ],
+      "country": "Germany",
+      "description": "Major Celtic oppidum/settlement in Germany",
+      "type": "verified_site"
+    },
+    {
+      "title": "Heidengraben",
+      "source": "Known Celtic Sites Database",
+      "coordinates": [
+        48.55,
+        9.45
+      ],
+      "country": "Germany",
+      "description": "Major Celtic oppidum/settlement in Germany",
+      "type": "verified_site"
+    },
+    {
+      "title": "Martberg",
+      "source": "Known Celtic Sites Database",
+      "coordinates": [
+        50.1694,
+        7.3861
+      ],
+      "country": "Germany",
+      "description": "Major Celtic oppidum/settlement in Germany",
+      "type": "verified_site"
+    },
+    {
+      "title": "Dünsberg",
+      "source": "Known Celtic Sites Database",
+      "coordinates": [
+        50.7333,
+        8.4833
+      ],
+      "country": "Germany",
+      "description": "Major Celtic oppidum/settlement in Germany",
+      "type": "verified_site"
+    },
+    {
+      "title": "La Tène I",
+      "source": "Wikipedia Table - https://en.wikipedia.org/wiki/La_T%C3%A8ne_culture",
+      "coordinates": null,
+      "description": "\nLa Tène I\n\nLa Tène A\n\n450–380 BC\n",
+      "type": "table_entry",
+      "url": "https://en.wikipedia.org/wiki/La_T%C3%A8ne_culture"
+    },
+    {
+      "title": "La Tène I",
+      "source": "Wikipedia Table - https://en.wikipedia.org/wiki/La_T%C3%A8ne_culture",
+      "coordinates": null,
+      "description": "\nLa Tène I\n\nLa Tène B\n\n380–250 BC\n",
+      "type": "table_entry",
+      "url": "https://en.wikipedia.org/wiki/La_T%C3%A8ne_culture"
+    },
+    {
+      "title": "La Tène II",
+      "source": "Wikipedia Table - https://en.wikipedia.org/wiki/La_T%C3%A8ne_culture",
+      "coordinates": null,
+      "description": "\nLa Tène II\n\nLa Tène C\n\n250–150 BC\n",
+      "type": "table_entry",
+      "url": "https://en.wikipedia.org/wiki/La_T%C3%A8ne_culture"
+    },
+    {
+      "title": "La Tène III",
+      "source": "Wikipedia Table - https://en.wikipedia.org/wiki/La_T%C3%A8ne_culture",
+      "coordinates": null,
+      "description": "\nLa Tène III\n\nLa Tène D\n\n150–1 BC\n",
+      "type": "table_entry",
+      "url": "https://en.wikipedia.org/wiki/La_T%C3%A8ne_culture"
+    },
+    {
+      "title": "Kelheim",
+      "source": "Archaeological Database",
+      "coordinates": [
+        48.9186,
+        11.8817
+      ],
+      "description": "Celtic oppidum",
+      "type": "archaeological_site"
+    },
+    {
+      "title": "Altenburg-Rheinau",
+      "source": "Archaeological Database",
+      "coordinates": [
+        47.6469,
+        8.4931
+      ],
+      "description": "Celtic oppidum",
+      "type": "archaeological_site"
+    },
+    {
+      "title": "Basel-Gasfabrik",
+      "source": "Archaeological Database",
+      "coordinates": [
+        47.575,
+        7.6
+      ],
+      "description": "Celtic settlement",
+      "type": "archaeological_site"
+    },
+    {
+      "title": "Bern-Engehalbinsel",
+      "source": "Archaeological Database",
+      "coordinates": [
+        46.9522,
+        7.4586
+      ],
+      "description": "Celtic oppidum",
+      "type": "archaeological_site"
+    },
+    {
+      "title": "Entremont",
+      "source": "Archaeological Database",
+      "coordinates": [
+        43.5308,
+        5.4378
+      ],
+      "description": "Celtic oppidum",
+      "type": "archaeological_site"
+    },
+    {
+      "title": "Ensérune",
+      "source": "Archaeological Database",
+      "coordinates": [
+        43.2897,
+        3.0503
+      ],
+      "description": "Celtic oppidum",
+      "type": "archaeological_site"
+    },
+    {
+      "title": "Corent",
+      "source": "Archaeological Database",
+      "coordinates": [
+        45.6589,
+        3.1908
+      ],
+      "description": "Celtic oppidum",
+      "type": "archaeological_site"
+    },
+    {
+      "title": "Gergovia",
+      "source": "Archaeological Database",
+      "coordinates": [
+        45.7089,
+        3.125
+      ],
+      "description": "Celtic oppidum",
+      "type": "archaeological_site"
+    },
+    {
+      "title": "Aulnat",
+      "source": "Archaeological Database",
+      "coordinates": [
+        45.7667,
+        3.1667
+      ],
+      "description": "Celtic settlement",
+      "type": "archaeological_site"
+    }
+  ]
+}

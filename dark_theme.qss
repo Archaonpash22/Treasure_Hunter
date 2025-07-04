@@ -1,0 +1,203 @@
+/* Dark Theme für die Treasure Hunter App */
+
+QMainWindow {
+    background-color: #2E2E2E;
+}
+
+QWidget#controlPanel, QWidget#poiPanel {
+    background-color: #3C3C3C;
+}
+
+QWidget#controlPanel {
+    border-right: 1px solid #555555;
+}
+
+QWidget#poiPanel {
+    border-top: 1px solid #555555;
+}
+
+
+QLabel {
+    color: #E0E0E0;
+    font-size: 14px;
+}
+
+QLabel#titleLabel {
+    font-size: 20px;
+    font-weight: bold;
+    color: #FFFFFF;
+    padding-bottom: 5px;
+    margin-bottom: 5px;
+}
+
+QLabel#subTitleLabel {
+    font-size: 16px;
+    font-weight: bold;
+    color: #CCCCCC;
+    padding-top: 10px;
+}
+
+QLineEdit, QComboBox, QTextEdit {
+    background-color: #2E2E2E;
+    color: #E0E0E0;
+    border: 1px solid #555555;
+    border-radius: 5px;
+    padding: 8px;
+    font-size: 14px;
+}
+
+QLineEdit:focus, QComboBox:focus, QTextEdit:focus {
+    border: 1px solid #007ACC;
+}
+
+QComboBox::drop-down {
+    border: none;
+}
+
+QComboBox::down-arrow {
+    image: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iI2UwZTBlMCIgdmlld0JveD0iMCAwIDI1NiAyNTYiPjxwYXRoIGQ9Ik0yMTMsMTMxbC04MCw4MGE4LDgsMCwwLDEtMTEuMzIsMEw0MiwxMzFhOCw4LDAsMCwxLDExLjMyLTExLjMyTDEyOCwxOTQuNjlsNzMuNjYtNzMuNjVhOCw4LDAsMCwxLDExLjMyLDExLjMyWiI+PC9wYXRoPjwvc3ZnPg==);
+    width: 14px;
+    height: 14px;
+}
+
+QPushButton {
+    background-color: #007ACC;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 5px;
+    padding: 10px;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+QPushButton:hover {
+    background-color: #008DDc;
+}
+
+QPushButton:pressed {
+    background-color: #006ABc;
+}
+
+QPushButton#locationButton {
+    background-color: #28a745;
+}
+QPushButton#locationButton:hover {
+    background-color: #2ebf4f;
+}
+QPushButton#locationButton:pressed {
+    background-color: #218838;
+}
+
+QStatusBar {
+    color: #E0E0E0;
+}
+
+QMessageBox, QDialog {
+    background-color: #3C3C3C;
+}
+
+QMessageBox QLabel, QDialog QLabel, QDialog QLineEdit, QDialog QComboBox {
+    color: #E0E0E0;
+}
+
+/* --- Listen-Stile --- */
+QListWidget {
+    background-color: #2E2E2E;
+    border: 1px solid #555555;
+    border-radius: 5px;
+}
+
+QListWidget::item {
+    padding: 8px;
+    color: #E0E0E0;
+}
+
+QListWidget::item:hover {
+    background-color: #4a4a4a;
+}
+
+QListWidget::item:selected {
+    background-color: #007ACC;
+    color: #FFFFFF;
+}
+
+/* --- Checkbox-Stile --- */
+QCheckBox {
+    color: #E0E0E0;
+    padding: 5px;
+    font-size: 14px;
+}
+
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+}
+
+QCheckBox::indicator:unchecked {
+    background-color: #2E2E2E;
+    border: 1px solid #555555;
+    border-radius: 4px;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #007ACC;
+    border: 1px solid #009AEE;
+    border-radius: 4px;
+    image: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0id2hpdGUiIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBkPSJNMjI5LjY2LDE3OC4zNEwxMTQuMzQsNjNhOCw4LDAsMCwwLTExLjMyLDBMNDIsMTE0LjM0YTgsOCwwLDAsMCwxMS4zMiwxMS4zMkwxMDgsOTkuMzFsMTEwLjM0LDExMC4zNGE4LDgsMCwwLDAsMTEuMzItMTEuMzJaIj48L3BhdGg+PC9zdmc+);
+}
+
+/* --- NEU: Stile für die Baumansicht --- */
+QTreeWidget {
+    background-color: #2E2E2E;
+    border: none;
+    color: #E0E0E0;
+}
+QTreeWidget::item {
+    padding: 5px;
+}
+QTreeWidget::item:hover {
+    background-color: #4a4a4a;
+}
+QTreeWidget::item:selected {
+    background-color: #007ACC;
+}
+QTreeWidget::branch {
+    background-color: transparent;
+}
+QTreeWidget::branch:has-children:!has-siblings:closed,
+QTreeWidget::branch:closed:has-children:has-siblings {
+    image: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iI2UwZTBlMCIgdmlld0JveD0iMCAwIDI1NiAyNTYiPjxwYXRoIGQ9Ik0xODEsMTMyYTEyLDEyLDAsMCwxLDAsMTZsLTgwLDgwYTEyLDEyLDAsMCwxLTE3LDAsMTIuMDgsMTIuMDgsMCwwLDEsMC0xN0wxNTgsMTM2LDg0LDYyYTEyLDEyLDAsMSwxLDE3LTE3bDQwLDQwLDQwLTQwYTEyLDEyLDAsMCwxLDE3LDE3WiI+PC9wYXRoPjwvc3ZnPg==);
+}
+QTreeWidget::branch:open:has-children:!has-siblings,
+QTreeWidget::branch:open:has-children:has-siblings {
+    image: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNiIgaGVpZ2h0PSIxNiIgZmlsbD0iI2UwZTBlMCIgdmlld0JveD0iMCAwIDI1NiAyNTYiPjxwYXRoIGQ9Ik0yMTMsMTMxbC04MCw4MGE4LDgsMCwwLDEtMTEuMzIsMEw0MiwxMzFhOCw4LDAsMCwxLDExLjMyLTExLjMyTDEyOCwxOTQuNjlsNzMuNjYtNzMuNjVhOCw4LDAsMCwxLDExLjMyLDExLjMyWiI+PC9wYXRoPjwvc3ZnPg==);
+}
+QTreeWidget QCheckBox {
+    padding: 0px;
+}
+
+/* Slider-Stile */
+QSlider::groove:horizontal {
+    border: 1px solid #555555;
+    height: 4px;
+    background: #2E2E2E;
+    margin: 2px 0;
+    border-radius: 2px;
+}
+QSlider::handle:horizontal {
+    background: #007ACC;
+    border: 1px solid #009AEE;
+    width: 16px;
+    height: 16px;
+    margin: -6px 0; 
+    border-radius: 8px;
+}
+
+/* Log-Fenster */
+QTextEdit#logConsole {
+    background-color: #252525;
+    color: #CCCCCC;
+    border: 1px solid #555555;
+    border-radius: 5px;
+    font-family: Consolas, "Courier New", monospace;
+}

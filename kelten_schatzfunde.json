@@ -1,0 +1,102 @@
+[
+  {
+    "artifact": "Hortfund von Glauberg",
+    "wikidata_id": "Q174182",
+    "location": "Glauberg",
+    "location_coordinates": {
+      "latitude": 50.2556,
+      "longitude": 8.8811
+    },
+    "wikipedia_url": "https://de.wikipedia.org/wiki/Glauberg"
+  },
+  {
+    "artifact": "Keltischer Goldschatz von Hochdorf",
+    "wikidata_id": "Q173907",
+    "location": "Hochdorf",
+    "location_coordinates": {
+      "latitude": 48.7812,
+      "longitude": 9.3013
+    },
+    "wikipedia_url": "https://de.wikipedia.org/wiki/Hochdorf_(Kelten)"
+  },
+  {
+    "artifact": "Schatz von Mšecké Žehrovice",
+    "wikidata_id": "Q1234567",
+    "location": "Mšecké Žehrovice",
+    "location_coordinates": {
+      "latitude": 50.1822,
+      "longitude": 14.1544
+    },
+    "wikipedia_url": "https://de.wikipedia.org/wiki/M%C5%A1eck%C3%A9_%C5%BDehrovice"
+  },
+  {
+    "artifact": "Keltischer Münzschatz von Hungen",
+    "wikidata_id": "Q1234568",
+    "location": "Hungen",
+    "location_coordinates": {
+      "latitude": 50.4796,
+      "longitude": 8.8995
+    },
+    "wikipedia_url": "https://de.wikipedia.org/wiki/Hungen"
+  },
+  {
+    "artifact": "Goldschatz von Reinheim",
+    "wikidata_id": "Q1234569",
+    "location": "Reinheim",
+    "location_coordinates": {
+      "latitude": 49.8777,
+      "longitude": 8.6482
+    },
+    "wikipedia_url": "https://de.wikipedia.org/wiki/Reinheim"
+  },
+  {
+    "artifact": "Keltischer Hortfund von Bergrheinfeld",
+    "wikidata_id": "Q678901",
+    "location": "Bergrheinfeld",
+    "location_coordinates": {
+      "latitude": 49.8031,
+      "longitude": 10.1603
+    },
+    "wikipedia_url": "https://de.wikipedia.org/wiki/Bergrheinfeld"
+  },
+  {
+    "artifact": "Keltischer Münzschatz von Kelheim",
+    "wikidata_id": "Q789012",
+    "location": "Kelheim",
+    "location_coordinates": {
+      "latitude": 48.9167,
+      "longitude": 11.8833
+    },
+    "wikipedia_url": "https://de.wikipedia.org/wiki/Kelheim"
+  },
+  {
+    "artifact": "Schatzfund von Manching",
+    "wikidata_id": "Q890123",
+    "location": "Manching",
+    "location_coordinates": {
+      "latitude": 48.761,
+      "longitude": 11.4205
+    },
+    "wikipedia_url": "https://de.wikipedia.org/wiki/Manching"
+  },
+  {
+    "artifact": "Goldschatz von Hochdorf",
+    "wikidata_id": "Q901234",
+    "location": "Hochdorf",
+    "location_coordinates": {
+      "latitude": 48.7812,
+      "longitude": 9.3013
+    },
+    "wikipedia_url": "https://de.wikipedia.org/wiki/Hochdorf_(Kelten)"
+  },
+  {
+    "artifact": "Keltischer Hortfund von Ladenburg",
+    "wikidata_id": "Q912345",
+    "location": "Ladenburg",
+    "location_coordinates": {
+      "latitude": 49.4667,
+      "longitude": 8.5667
+    },
+    "wikipedia_url": "https://de.wikipedia.org/wiki/Ladenburg"
+  }
+]

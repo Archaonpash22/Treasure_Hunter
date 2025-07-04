@@ -1,0 +1,17 @@
+
+PyQt6
+requests
+beautifulsoup4
+wikipedia-api
+lxml
+folium
+geopy
+pandas
+numpy
+selenium
+webdriver-manager
+pydantic
+aiohttp
+asyncio
+plotly
+openpyxl

@@ -1,0 +1,44 @@
+[
+    {
+        "lat": 47.32005,
+        "lon": 7.89976,
+        "name": "Aarburg",
+        "url": "https://de.wikipedia.org/wiki/Aarburg",
+        "zusammenfassung": "Aarburg (im einheimischen Dialekt: Arbig, ˈɑrb̥iɡ̊; französisch: Aarbourg) ist eine Kleinstadt und Einwohnergemeinde im Schweizer Kanton Aargau. Sie gehört zum Bezirk Zofingen, liegt an der Aare und grenzt an den Kanton Solothurn."
+    },
+    {
+        "lat": 48.14388889,
+        "lon": 11.59111111,
+        "name": "Archäologische Staatssammlung",
+        "url": "https://de.wikipedia.org/wiki/Arch%C3%A4ologische_Staatssammlung",
+        "zusammenfassung": "Die Archäologische Staatssammlung in München ist das zentrale bayerische Landesmuseum für Vor- und Frühgeschichte. Sie sammelt und präsentiert Hinterlassenschaften von Menschen im süddeutschen Raum, von der Altsteinzeit über die vorrömische und römische Zeit bis zum frühen Mittelalter, dazu eine eigene Abteilung „Mittelmeergebiet und Orient“, in der die Einbindung Bayerns in die Vor- und Frühgeschichte Mitteleuropas aufgezeigt wird."
+    },
+    {
+        "lat": 49.355964,
+        "lon": 6.707577,
+        "name": "Contiomagus",
+        "url": "https://de.wikipedia.org/wiki/Contiomagus",
+        "zusammenfassung": "Contiomagus war ein beim heutigen Pachten (Stadt Dillingen/Saar) gelegener gallorömischer Vicus. Contiomagus gehörte zur gallischen Provinz Belgica."
+    },
+    {
+        "lat": 47.35246,
+        "lon": 16.476703,
+        "name": "Höhensiedlung Velem-Szentvid",
+        "url": "https://de.wikipedia.org/wiki/H%C3%B6hensiedlung_Velem-Szentvid",
+        "zusammenfassung": "Die Höhensiedlung Velem-Szentvid ist eine latènezeitliche Siedlung auf dem Sankt-Veitsberg (Szentvid-hegyi) in der ungarischen Stadt Velem (dt. St. Veit im Komitat Vas), 6 km südwestlich von Kőszeg (Güns) entfernt im Günser Gebirge (Kőszegi-hegység). Der Ort liegt im Gebiet des Naturparks Geschriebenstein-Írottkő.\nVelem-Szentvid wurde seit dem Neolithikum (Jungsteinzeit; 5500 bis 2200 v. Chr.) besiedelt, war in der späten Bronzezeit (1300 bis 800 v. Chr.) ein Zentrum der Bronzeherstellung und -verarbeitung und schließlich in der Latènezeit (480 v. Chr. bis um Christi Geburt) ein wichtiges europäisches Eisen-Handelszentrum. Mit den zeitgleichen Siedlungen Sopron-Várhely (Ungarn) und Burg in Schwarzenbach (Niederösterreich) stand Velem-Szentvid wahrscheinlich in enger Verbindung. Die Anwesenheit der Kelten seit der frühen Latènezeit wird durch Einzelfunde bestätigt, das Oppidum (befestigte, stadtartig angelegte Siedlung) wurde in der späten Latènezeit gegründet."
+    },
+    {
+        "lat": 49.9505606,
+        "lon": 13.7062636,
+        "name": "Münzschatz von Podmokl",
+        "url": "https://de.wikipedia.org/wiki/M%C3%BCnzschatz_von_Podmokl",
+        "zusammenfassung": "Der Münzschatz von Podmokl (tschechisch Podmokelský poklad) war ein Depotfund aus dem Jahre 1771 von ca. 5000 goldenen Regenbogenschüsselchen. Er wurde nördlich des Dorfes Podmokl (Podmokly) im Königreich Böhmen gefunden und gilt als größter Fund dieser Art in Böhmen."
+    },
+    {
+        "lat": 47.786576,
+        "lon": 8.704487,
+        "name": "Römischer Gutshof von Büßlingen",
+        "url": "https://de.wikipedia.org/wiki/R%C3%B6mischer_Gutshof_von_B%C3%BC%C3%9Flingen",
+        "zusammenfassung": "Der Römische Gutshof von Büßlingen ist eine restaurierte und rekonstruierte Villa rustica (römisches Landgut) aus dem ersten Jahrhundert n. Chr., die mindestens bis ins dritte Jahrhundert existierte.\nDie Anlage umfasst auf einer Fläche von 5,4 Hektar neun ausgegrabene Gebäude. Sie befindet sich südsüdöstlich von Büßlingen, einem Stadtteil von Tengen im baden-württembergischen Landkreis Konstanz in Deutschland. Nach der Villa rustica von Meßkirch ist sie die größte bekannte Hofanlage ihrer Art in Süddeutschland und auch die einzige, deren durch Luftbildarchäologie ermittelten Gebäude vollständig ausgegraben wurden. Heute ist sie ein Freilichtmuseum.\n\n"
+    }
+]
