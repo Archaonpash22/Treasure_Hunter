@@ -9,32 +9,11 @@
             <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
             <script src="https://cdn.jsdelivr.net/npm/qwebchannel/qwebchannel.js"></script>
             <style>
-                html, body, #map {
-                    height: 100%;
-                    width: 100%;
-                    margin: 0;
-                }
-                /* Custom styles for popups if needed */
-                .leaflet-popup-content-wrapper {
-                    border-radius: 8px;
-                }
-                .leaflet-popup-content {
-                    font-family: 'Inter', sans-serif;
-                    font-size: 14px;
-                }
-                .poi-popup-content img {
-                    max-width: 100%;
-                    height: auto;
-                    border-radius: 4px;
-                    margin-bottom: 8px;
-                }
-                .poi-popup-content a {
-                    color: #007bff;
-                    text-decoration: none;
-                }
-                .poi-popup-content a:hover {
-                    text-decoration: underline;
-                }
+                html, body, #map { height: 100%; width: 100%; margin: 0; }
+                .leaflet-popup-content-wrapper { border-radius: 8px; }
+                .poi-popup-content img { max-width: 100%; height: auto; border-radius: 4px; margin-bottom: 8px; }
+                .poi-popup-content a { color: #007bff; text-decoration: none; }
+                .poi-popup-content a:hover { text-decoration: underline; }
             </style>
         </head>
         <body>
@@ -44,43 +23,26 @@
             var map, searchMarker;
             var baseLayers = {};
             var terrainLayers = {};
-            var poiLayers = {}; // Stores Leaflet LayerGroups for POIs
-            var permanentMarkers = {}; // Stores user-added permanent markers
+            var poiLayers = {};
+            var permanentMarkers = {};
             var isTerrainAutoMode = false;
             var currentTerrainOpacity = 0.7;
-            var allPoiDataFromPython = {}; // Speichert alle POI-Daten von Python
+            var allPoiDataFromPython = {};
+            var borderLayers = {};
+            
+            const terrainData = {"germany": {"layers": {"de_gelaende": {"url": "https://sgx.geodatenzentrum.de/wms_basemapde_schummerung", "options": {"layers": "de_basemapde_web_raster_hillshade", "format": "image/png", "transparent": true, "attribution": "Gel\u00e4nde &copy; GeoBasis-DE / BKG"}}, "by_lidar_schraeglicht": {"url": "https://geoservices.bayern.de/od/wms/dgm/v1/relief", "options": {"layers": "by_relief_schraeglicht", "format": "image/png", "transparent": true, "attribution": "Gel\u00e4nderelief &copy; LDBV", "version": "1.3.0", "maxZoom": 20}}, "by_lidar_kombiniert": {"url": "https://geoservices.bayern.de/od/wms/dgm/v1/relief", "options": {"layers": "by_relief_kombiniert", "format": "image/png", "transparent": true, "attribution": "Gel\u00e4nderelief &copy; LDBV", "version": "1.3.0", "maxZoom": 20}}}, "bounds": {"bavaria": [[47.2, 8.9], [50.6, 13.9]], "germany": [[47.2, 5.8], [55.1, 15.1]]}, "logic": {"bavaria": {"15": "by_lidar_kombiniert", "14": "by_lidar_schraeglicht", "0": "de_gelaende"}, "germany": {"0": "de_gelaende"}}}, "austria": {"layers": {"at_dtm": {"url": "https://maps.wien.gv.at/basemap/bmapgelaende/grau/google3857/{z}/{y}/{x}.jpeg", "options": {"attribution": "Gel\u00e4ndedarstellung aus Digitalem Gel\u00e4ndemodell (DGM) | Datenquelle: basemap.at"}}}, "bounds": {"austria": [[46.3, 9.5], [49.1, 17.2]]}, "logic": {"austria": {"0": "at_dtm"}}}, "switzerland": {"layers": {"ch_dtm": {"url": "https://wms.geo.admin.ch/", "options": {"layers": "ch.swisstopo.swissalti3d-reliefschattierung", "format": "image/png", "transparent": true, "attribution": "Relief \u00a9 swisstopo", "version": "1.3.0"}}}, "bounds": {"switzerland": [[45.8, 5.9], [47.8, 10.5]]}, "logic": {"switzerland": {"0": "ch_dtm"}}}, "italy": {"layers": {"it_dtm": {"url": "https://ows.terrestris.de/osm/service?", "options": {"layers": "SRTM30-Hillshade", "format": "image/png", "transparent": true, "attribution": "SRTM30-Hillshade &copy; terrestris", "version": "1.1.1", "srs": "EPSG:3857"}}}, "bounds": {"italy": [[35.5, 6.6], [47.1, 18.5]]}, "logic": {"italy": {"0": "it_dtm"}}}};
 
-            // Define custom icons using SVG data URIs for various categories and marker types
-            var icons = {
-                'kelten': L.icon({ iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNlYTc0MTYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI5Ij48L2NpcmNsZT48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxIj48L2NpcmNsZT48cGF0aCBkPSJNMTIgM3Y0bS00IDVoNG01IDR2NE03IDEyaDRtNSA1aC00Ij48L3BhdGg+PC9zdmc+', iconSize: [24, 24] }),
-                'römer': L.icon({ iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy52My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDdBY0MiHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgNnYxNG0tNCAwVjEwbTggN1YxMG0tNy41IDJIMTYuNU04IDZoOGm0IDhoLThtLTItMmgybTQtMmgyIi8+PC9zdmc+', iconSize: [24, 24] }),
-                'mittelalter': L.icon({ iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMyOGE3NDUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMCA1djE0aDI0VjVabTItMnYyaDIwVjN6TTQgMjJoMnYtM0g0em0xNCgyaDJ2LTNIMTh6Ij48L3BhdGg+PC9zdmc+', iconSize: [24, 24] }),
-                'weltkriege': L.icon({ iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy52My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNkYzI2MjYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjIgMTEuMDhWMjBIMlYxMS4wOE0xNyA5di00TDEyIDFsLTUgNFY5bTUgMmMwIDEuNjYtMS4zNCAzLTMgM3MtMy0xLjM0LTMtM2gxLjVNMCAwaDI0djI0SDB6Ij48L3BhdGg+PC9sZz4=', iconSize: [24, 24] }),
-                'punkt': L.icon({ iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM2YzcyYjAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI4Ij48L2NpcmNsZT48L3N2Zz4=', iconSize: [24, 24] }),
-                'münze': L.icon({ iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNGRkQ3MDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj4KICA8Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCI+PC9jaXJjbGU+CiAgPHBhdGggZD0iTTE1IDhhMiAyIDAgMCAxIDIgMnY0YTIgMiAwIDAgMS0yIDJoLTZhMiAyIDAgMCAxLTIgMlYxMGEyIDIgMCAwIDEgMi0yaDZaIj48L3BhdGg+CiAgPGxpbmUgeDE9IjEyIiB5MT0iMTAiIHgyPSIxMiIgeTI9IjE0Ij48L2xpbmU+Cjwvc3ZnPg==', iconSize: [24, 24] }),
-                'ziel': L.icon({ iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNEQzE0M0MiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj4KICA8Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCI+PC9jaXJjbGU+CiAgPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iNiI+PC9jaXJjbGU+CiAgPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMiI+PC9jaXJjbGU+Cjwvc3ZnPg==', iconSize: [24, 24] }),
-                'siedlung': L.icon({ iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyA5bDktNyA5IDd2MTFhMiAyIDAgMCAxLTIgMkg1YTIgMiAwIDAgMS0yLTJ6Ij48L3BhdGg+PHBvbHlsaW5lIHBvaW50cz0iOSAyMiA5IDEyIDE1IDEyIDE1IDIyIj48L3BvbHlsaW5lPjwvc3ZnPg==', iconSize: [24, 24] }),
-                'schatz': L.icon({ iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cmVjdCB4PSIyIiB5PSI4IiB3aWR0aD0iMjAiIGhlaWdodD0iMTQiIHJ4PSIyIiByeT0iMiI+PC9yZWN0PjxwYXRoIGQ9Ik0xMiAydjZtLTQgMGh4Ij48L3BhdGg+PHBhdGggZD0iTTcgMTVoMTAiPjwvcGF0aD48L3N2Zz4=', iconSize: [24, 24] }),
-                'kastell': L.icon({ iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyAzYTEgMSAwIDAgMSAxLTFoMTZhMSAxIDAgMCAxIDEgMXYxOGExIDEgMCAwIDEtMSAxSDNhMSAxIDAgMCAxLTEtMVY0YTEgMSAwIDAgMSAxLTF6Ij48L3BhdGg+PGxpbmUgeDE9IjEyIiB5MT0iMyIgeDI9IjEyIiB5Mj0iMjEiPjwvbGluZT48bGluZSB4MT0iMyIgeTE9IjkiIHgyPSIyMSIgeTI9IjkiPjwvbGluZT48bGluZSB4MT0iMyIgeTE9IjE1IiB4Mj0iMjEiIHkyPSIxNSI+PC9saW5lPjxsaW5lIHgxPSI5IiB5MT0iMyIgeDI9IjkiIHkyPSI5Ij48L2xpbmU+PGxpbmUgeDE9IjE1IiB5MT0iMyIgeDI9IjE1IiB5Mj0iOSI+PC9saW5lPjxsaW5lIHgxPSI5IiB5MT0iMTUiIHgyPSI5IiB5Mj0iMjEiPjwvbGluZT48bGluZSB4MT0iMTUiIHkxPSIxNSIgeDI9IjE1IiB5Mj0iMjEiPjwvbGluZT48L3N2Zz4=', iconSize: [24, 24] }),
-                'burg': L.icon({ iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjIgMjB2LTJoLTJ2Mmgyem0tMi00aDJ2LTJoLTJ2MnptLTQtMi4yVjIwaDR2LTQuMkwxMiAxMi44bC04IDQuNXYtNC40bDEwLjYtNi4ybC0yLjYtMS41TDEyIDJsLTcgNHYxMGMwIDIgMCAyIDIgMmgyMGMwIDIgMCAyIDIgMiAyem0tMTAgMGgybTAtNmgwbS00IDhoNGm0LTZoMGm0IDhoNGm0LTZoMCI+PC9wYXRoPjwvc3ZnPg==', iconSize: [24, 24] }),
-                'bunker': L.icon({ iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy52My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgMjJzOC00IDgtMTBWNWwtOC0zLTggM3Y3YzAgNiA4IDEwIDggMTB6Ij48L3BhdGg+PC9zdmc+', iconSize: [24, 24] }),
-                'schanze': L.icon({ iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMiAyMmg0bDIuNS02IDUtNiAyLjUgNmg0VjJoLTIwWiIvPjwvc3ZnPg==', iconSize: [24, 24] })
-            };
-
-            // NEU: Definierte Farben für jede Kultur
-            var cultureColors = {
-                'kelten': '#ea7416',    // Orange
-                'römer': '#007AcC',     // Blau
-                'mittelalter': '#28a745', // Grün
-                'weltkriege': '#dc2626'  // Rot
-            };
-
-            function log(msg) {
-                // Send log messages to the Python backend via the bridge
-                if(window.bridge) window.bridge.log(msg);
+            const icons_data = {"kelten": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNlYTc0MTYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI5Ij48L2NpcmNsZT48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxIj48L2NpcmNsZT48cGF0aCBkPSJNMTIgM3Y0bS00IDVoNG01IDR2NE03IDEyaDRtNSA1aC00Ij48L3BhdGg+PC9zdmc+", "iconSize": [24, 24]}, "r\u00f6mer": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy52My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDdBY0MiHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgNnYxNG0tNCAwVjEwbTggN1YxMG0tNy41IDJIMTYuNU04IDZoOGm0IDhoLThtLTItMmgybTQtMmgyIi8+PC9zdmc+", "iconSize": [24, 24]}, "mittelalter": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMyOGE3NDUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMCA1djE0aDI0VjVabTItMnYyaDIwVjN6TTQgMjJoMnYtM0g0em0xNCgyaDJ2LTNIMTh6Ij48L3BhdGg+PC9zdmc+", "iconSize": [24, 24]}, "weltkriege": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy52My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNkYzI2MjYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjIgMTEuMDhWMjBIMlYxMS4wOE0xNyA5di00TDEyIDFsLTUgNFY5bTUgMmMwIDEuNjYtMS4zNCAzLTMgM3MtMy0xLjM0LTMtM2gxLjVNMCAwaDI0djI0SDB6Ij48L3BhdGg+PC9sZz4=", "iconSize": [24, 24]}, "punkt": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM2YzcyYjAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI4Ij48L2NpcmNsZT48L3N2Zz4=", "iconSize": [24, 24]}, "m\u00fcnze": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNGRkQ3MDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj4KICA8Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCI+PC9jaXJjbGU+CiAgPHBhdGggZD0iTTE1IDhhMiAyIDAgMCAxIDIgMnY0YTIgMiAwIDAgMS0yIDJoLTZhMiAyIDAgMCAxLTIgMlYxMGEyIDIgMCAwIDEgMi0yaDZaIj48L3BhdGg+CiAgPGxpbmUgeDE9IjEyIiB5MT0iMTAiIHgyPSIxMiIgeTI9IjE0Ij48L2xpbmU+Cjwvc3ZnPg==", "iconSize": [24, 24]}, "ziel": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNEQzE0M0MiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj4KICA8Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCI+PC9jaXJjbGU+CiAgPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iNiI+PC9jaXJjbGU+CiAgPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMiI+PC9jaXJjbGU+Cjwvc3ZnPg==", "iconSize": [24, 24]}, "siedlung": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyA5bDktNyA5IDd2MTFhMiAyIDAgMCAxLTIgMkg1YTIgMiAwIDAgMS0yLTJ6Ij48L3BhdGg+PHBvbHlsaW5lIHBvaW50cz0iOSAyMiA5IDEyIDE1IDEyIDE1IDIyIj48L3BvbHlsaW5lPjwvc3ZnPg==", "iconSize": [24, 24]}, "schatz": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cmVjdCB4PSIyIiB5PSI4IiB3aWR0aD0iMjAiIGhlaWdodD0iMTQiIHJ4PSIyIiByeT0iMiI+PC9yZWN0PjxwYXRoIGQ9Ik0xMiAydjZtLTQgMGh4Ij48L3BhdGg+PHBhdGggZD0iTTcgMTVoMTAiPjwvcGF0aD48L3N2Zz4=", "iconSize": [24, 24]}, "kastell": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyAzYTEgMSAwIDAgMSAxLTFoMTZhMSAxIDAgMCAxIDEgMXYxOGExIDEgMCAwIDEtMSAxSDNhMSAxIDAgMCAxLTEtMVY0YTEgMSAwIDAgMSAxLTF6Ij48L3BhdGg+PGxpbmUgeDE9IjEyIiB5MT0iMyIgeDI9IjEyIiB5Mj0iMjEiPjwvbGluZT48bGluZSB4MT0iMyIgeTE9IjkiIHgyPSIyMSIgeTI9IjkiPjwvbGluZT48bGluZSB4MT0iMyIgeTE9IjE1IiB4Mj0iMjEiIHkyPSIxNSI+PC9saW5lPjxsaW5lIHgxPSI5IiB5MT0iMyIgeDI9IjkiIHkyPSI5Ij48L2xpbmU+PGxpbmUgeDE9IjE1IiB5MT0iMyIgeDI9IjE1IiB5Mj0iOSI+PC9saW5lPjxsaW5lIHgxPSI5IiB5MT0iMTUiIHgyPSI5IiB5Mj0iMjEiPjwvbGluZT48bGluZSB4MT0iMTUiIHkxPSIxNSIgeDI9IjE1IiB5Mj0iMjEiPjwvbGluZT48L3N2Zz4=", "iconSize": [24, 24]}, "burg": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjIgMjB2LTJoLTJ2Mmgyem0tMi00aDJ2LTJoLTJ2MnptLTQtMi4yVjIwaDR2LTQuMkwxMiAxMi44bC04IDQuNXYtNC40bDEwLjYtNi4ybC0yLjYtMS41TDEyIDJsLTcgNHYxMGMwIDIgMCAyIDIgMmgyMGMwIDIgMCAyIDIgMiAyem0tMTAgMGgybTAtNmgwbS00IDhoNGm0LTZoMGm0IDhoNGm0LTZoMCI+PC9wYXRoPjwvc3ZnPg==", "iconSize": [24, 24]}, "bunker": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy52My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgMjJzOC00IDgtMTBWNWwtOC0zLTggM3Y3YzAgNiA4IDEwIDggMTB6Ij48L3BhdGg+PC9zdmc+", "iconSize": [24, 24]}, "schanze": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMiAyMmg0bDIuNS02IDUtNiAyLjUgNmg0VjJoLTIwWiIvPjwvc3ZnPg==", "iconSize": [24, 24]}};
+            const cultureColors = {"kelten": "#ea7416", "r\u00f6mer": "#007AcC", "mittelalter": "#28a745", "weltkriege": "#dc2626"};
+            const icons = {};
+            for (const key in icons_data) {
+                if (icons_data.hasOwnProperty(key)) {
+                    icons[key] = L.icon(icons_data[key]);
+                }
             }
 
-            // Initialize QWebChannel once the DOM is loaded
+            function log(msg) { if(window.bridge) window.bridge.log(msg); }
+
             document.addEventListener('DOMContentLoaded', () => {
                 new QWebChannel(qt.webChannelTransport, channel => {
                     window.bridge = channel.objects.bridge;
@@ -89,255 +51,199 @@
             });
 
             function initializeMap() {
-                // Create the Leaflet map instance, centered on Germany/Bavaria
                 map = L.map('map', { crs: L.CRS.EPSG3857, center: [49.5, 12.5], zoom: 6 });
-
-                // Create a dedicated pane for terrain layers to control their z-index and pointer events
+                
                 map.createPane('terrainPane').style.zIndex = 450;
-                map.getPane('terrainPane').style.pointerEvents = 'none'; // Make terrain layers non-interactive
+                map.getPane('terrainPane').style.pointerEvents = 'none';
+                map.createPane('borderPane').style.zIndex = 500;
+                map.getPane('borderPane').style.pointerEvents = 'none';
 
-                // Define base map layers (Standard OpenStreetMap and Satellite Esri)
-                baseLayers['Standard'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 });
-                baseLayers['Satellit'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '&copy; Esri', maxZoom: 19 });
-                baseLayers['Standard'].addTo(map); // Add standard layer by default
-
-                var paneOption = { pane: 'terrainPane' };
-                // Define terrain overlay layers (WMS services from BKG and LDBV)
-                terrainLayers['de_gelaende'] = L.tileLayer.wms('https://sgx.geodatenzentrum.de/wms_basemapde_schummerung', { ...{ layers: 'de_basemapde_web_raster_hillshade', format: 'image/png', transparent: true, attribution: 'Gelände &copy; GeoBasis-DE / BKG' }, ...paneOption });
-                terrainLayers['by_lidar_schraeglicht'] = L.tileLayer.wms('https://geoservices.bayern.de/od/wms/dgm/v1/relief', { ...{ layers: 'by_relief_schraeglicht', format: 'image/png', transparent: true, attribution: 'Geländerelief &copy; LDBV', version: '1.3.0', maxZoom: 20 }, ...paneOption });
-                terrainLayers['by_lidar_kombiniert'] = L.tileLayer.wms('https://geoservices.bayern.de/od/wms/dgm/v1/relief', { ...{ layers: 'by_relief_kombiniert', format: 'image/png', transparent: true, attribution: 'Geländerelief &copy; LDBV', version: '1.3.0', maxZoom: 20 }, ...paneOption });
+                baseLayers['Standard'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 }).addTo(map);
                 
-                // Add Leaflet layer control for base layers (overlays will be added dynamically)
-                window.layerControl = L.control.layers(baseLayers).addTo(map);
-                // Add all terrain layers to the map initially but set their opacity to 0
-                for (const key in terrainLayers) {
-                    terrainLayers[key].setOpacity(0).addTo(map);
+                const paneOption = { pane: 'terrainPane' };
+                for (const countryName in terrainData) {
+                    const country = terrainData[countryName];
+                    for (const layerKey in country.layers) {
+                        if (!terrainLayers[layerKey]) {
+                            const layerInfo = country.layers[layerKey];
+                            let layerOptions = { ...layerInfo.options, ...paneOption };
+
+                            // --- FIX: Handle both 'crs' and 'srs' parameters ---
+                            let crs_string = layerOptions.crs || layerOptions.srs;
+                            if (crs_string && typeof crs_string === 'string') {
+                                if (crs_string === 'EPSG:3857') {
+                                    // Set the CRS object that Leaflet understands
+                                    layerOptions.crs = L.CRS.EPSG3857;
+                                }
+                            }
+
+                            if (layerInfo.url.includes('{z}')) {
+                                terrainLayers[layerKey] = L.tileLayer(layerInfo.url, layerOptions);
+                            } else {
+                                terrainLayers[layerKey] = L.tileLayer.wms(layerInfo.url, layerOptions);
+                            }
+                            terrainLayers[layerKey].setOpacity(0).addTo(map);
+                        }
+                    }
                 }
-
-                // Event listeners for map interactions
-                map.on('contextmenu', e => window.bridge.onMapRightClicked(e.latlng.lat, e.latlng.lng));
-                map.on('moveend zoomend', updateAutoTerrain); // Update terrain layer on map move/zoom
                 
-                // Signal Python that the map is ready
+                var borderPaneOption = { pane: 'borderPane' };
+                borderLayers[4] = L.geoJSON(null, { ...{ style: { color: '#006400', weight: 3, fillOpacity: 0.05, interactive: false } }, ...borderPaneOption });
+                borderLayers[6] = L.geoJSON(null, { ...{ style: { color: '#0000CD', weight: 2, fillOpacity: 0.05, interactive: false } }, ...borderPaneOption });
+                borderLayers[8] = L.geoJSON(null, { ...{ style: { color: '#FF4500', weight: 1, fillOpacity: 0.05, interactive: false } }, ...borderPaneOption });
+
+                map.on('contextmenu', e => window.bridge.onMapRightClicked(e.latlng.lat, e.latlng.lng));
+                map.on('moveend zoomend', updateAutoTerrain);
+                
                 if(window.bridge) window.bridge.onMapReady();
             }
-
+            
             function updateAutoTerrain() {
-                // Automatically switches terrain layers based on zoom level and map center
-                if (!isTerrainAutoMode) return; // Only run if auto mode is enabled
-
-                var zoom = map.getZoom();
-                var center = map.getCenter();
-                // Define geographical bounds for Bavaria and Germany
-                var bavariaBounds = L.latLngBounds([47.2, 8.9], [50.6, 13.9]);
-                var germanyBounds = L.latLngBounds([47.2, 5.8], [55.1, 15.1]);
-                var targetKey = null;
-
-                if (bavariaBounds.contains(center)) {
-                    // Specific Bavarian LiDAR layers for higher zoom levels
-                    if (zoom >= 15) targetKey = 'by_lidar_kombiniert';
-                    else if (zoom >= 14) targetKey = 'by_lidar_schraeglicht';
-                    else targetKey = 'de_gelaende'; // General German terrain for lower zooms
-                } else if (germanyBounds.contains(center)) {
-                    targetKey = 'de_gelaende'; // General German terrain outside Bavaria
+                if (!isTerrainAutoMode) {
+                    for (const key in terrainLayers) {
+                        if (terrainLayers[key].setOpacity) terrainLayers[key].setOpacity(0);
+                    }
+                    map.getContainer().style.filter = 'none';
+                    return;
                 }
                 
-                // Set opacity for terrain layers: target layer gets currentOpacity, others get 0
+                const zoom = map.getZoom();
+                const center = map.getCenter();
+                let targetKey = null;
+
+                if (terrainData.germany && terrainData.germany.bounds.bavaria && L.latLngBounds(terrainData.germany.bounds.bavaria).contains(center)) {
+                    const logic = terrainData.germany.logic.bavaria;
+                    if (zoom >= 15) { targetKey = logic['15']; } 
+                    else if (zoom >= 14) { targetKey = logic['14']; } 
+                    else { targetKey = logic['0']; }
+                }
+                else if (terrainData.austria && terrainData.austria.bounds.austria && L.latLngBounds(terrainData.austria.bounds.austria).contains(center)) {
+                    targetKey = terrainData.austria.logic.austria['0'];
+                }
+                else if (terrainData.switzerland && terrainData.switzerland.bounds.switzerland && L.latLngBounds(terrainData.switzerland.bounds.switzerland).contains(center)) {
+                    targetKey = terrainData.switzerland.logic.switzerland['0'];
+                }
+                else if (terrainData.italy && terrainData.italy.bounds.italy && L.latLngBounds(terrainData.italy.bounds.italy).contains(center)) {
+                    targetKey = terrainData.italy.logic.italy['0'];
+                }
+                else if (terrainData.germany && terrainData.germany.bounds.germany && L.latLngBounds(terrainData.germany.bounds.germany).contains(center)) {
+                    targetKey = terrainData.germany.logic.germany['0'];
+                }
+
                 for (const key in terrainLayers) {
                     terrainLayers[key].setOpacity(key === targetKey ? currentTerrainOpacity : 0);
                 }
-
-                // Helligkeit und Kontrast der Karte basierend auf Zoomstufe anpassen
+                
                 const mapContainer = map.getContainer();
-                let filterStyle = '';
-                if (zoom >= 15) {
-                    // Reduziere Helligkeit um 30% (behält 70% bei)
-                    // Erhöhe Kontrast um 20%
-                    filterStyle = 'brightness(70%) contrast(120%)';
-                    log("DEBUG: Map brightness reduced to 70% and contrast increased to 120% due to zoom level >= 15.");
-                } else {
-                    filterStyle = 'none'; // Normale Helligkeit und Kontrast
-                    log("DEBUG: Map brightness and contrast set to normal.");
-                }
+                let filterStyle = (zoom >= 15 && targetKey) ? 'brightness(70%) contrast(120%)' : 'none';
                 mapContainer.style.filter = filterStyle;
             }
             
-            // Funktion zum Initialisieren aller POI-Daten von Python
+            
+            window.updateBorderLayer = function(level, geoJsonData) {
+                if (borderLayers[level]) {
+                    borderLayers[level].clearLayers();
+                    if (geoJsonData && geoJsonData.features) {
+                        borderLayers[level].addData(geoJsonData);
+                    }
+                }
+            };
+
+            window.toggleBorderLayer = function(level, show) {
+                if (borderLayers[level]) {
+                    if (show && !map.hasLayer(borderLayers[level])) {
+                        map.addLayer(borderLayers[level]);
+                    } else if (!show && map.hasLayer(borderLayers[level])) {
+                        map.removeLayer(borderLayers[level]);
+                    }
+                }
+            };
+
+            window.getMapState = function() {
+                return {
+                    bbox: map.getBounds().toBBoxString(),
+                    zoom: map.getZoom()
+                };
+            };
+            
             window.setInitialPoiData = function(data) {
-                log("DEBUG: setInitialPoiData called with data keys: " + Object.keys(data).join(', '));
                 allPoiDataFromPython = data;
-                // Nach dem Laden der Daten können wir die Layer initialisieren (aber nicht anzeigen)
                 for (const layerKey in allPoiDataFromPython) {
                     if (allPoiDataFromPython.hasOwnProperty(layerKey)) {
                         if (!poiLayers[layerKey]) {
                             poiLayers[layerKey] = L.layerGroup();
                         }
-                        // Füge Layer zum LayerControl hinzu, aber nicht zur Karte
-                        let displayName = layerKey.replace(/\.json$/, '');
-                        displayName = displayName.replace(/_/g, ' ');
-                        displayName = displayName.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-                        // Vermeide doppeltes Hinzufügen zum LayerControl, falls schon vorhanden
-                        if (!window.layerControl._layers.some(l => l.layer === poiLayers[layerKey])) {
-                           window.layerControl.addOverlay(poiLayers[layerKey], displayName);
-                        }
                     }
                 }
             };
 
-            // Funktion zum Umschalten eines POI-Layers (wird von Python aufgerufen)
             window.togglePoiLayerVisibility = function(layerKey, show) {
-                log(`DEBUG: togglePoiLayerVisibility called for ${layerKey}, show: ${show}`);
                 const layer = poiLayers[layerKey];
                 const data = allPoiDataFromPython[layerKey];
-
-                if (!layer || !data) {
-                    log(`WARN: Layer or data not found for key: ${layerKey}. This might be a timing issue or missing data.`);
-                    return;
-                }
+                if (!layer || !data) return;
 
                 if (show) {
-                    layer.clearLayers(); // Vorherige Marker entfernen
+                    layer.clearLayers();
                     const era = layerKey.split('_')[0]; 
-                    // Extrahiere den Typ aus dem Dateinamen (z.B. "münze" aus "kelten_münze.json")
                     const typeFromFilename = layerKey.replace(/\.json$/, '').split('_').slice(1).join('_');
 
                     data.forEach(poi => {
-                        log(`DEBUG: Creating marker for ${poi.name}, Lat: ${poi.lat}, Lon: ${poi.lon}, URL: ${poi.url}, Image: ${poi.image_url}`);
-                        
-                        // Überprüfe, ob lat und lon gültige Zahlen sind
-                        if (typeof poi.lat !== 'number' || typeof poi.lon !== 'number' || isNaN(poi.lat) || isNaN(poi.lon)) {
-                            log(`ERROR: Invalid LatLng for POI: ${poi.name} (Lat: ${poi.lat}, Lon: ${poi.lon}). Skipping marker.`);
-                            return; // Marker überspringen, wenn Koordinaten ungültig sind
-                        }
-
+                        if (typeof poi.lat !== 'number' || typeof poi.lon !== 'number' || isNaN(poi.lat) || isNaN(poi.lon)) return;
                         let popupContent = `<div class="poi-popup-content"><b>${poi.name}</b>`;
-                        
-                        if (poi.image_url) {
-                            popupContent += `<br><img src="${poi.image_url}" alt="${poi.name}" onerror="this.style.display='none'; log('Image failed to load: ${poi.image_url}');">`;
-                        }
-                        if (poi.zusammenfassung) {
-                            // Optional: Kurze Zusammenfassung
-                            // popupContent += `<p>${poi.zusammenfassung.substring(0, 150)}...</p>`;
-                        }
-                        if (poi.url) {
-                            popupContent += `<br><a href="${poi.url}" target="_blank">Wikipedia-Eintrag</a>`;
-                        } else {
-                            log(`DEBUG: No Wikipedia URL for ${poi.name}`);
-                        }
+                        if (poi.image_url) popupContent += `<br><img src="${poi.image_url}" alt="${poi.name}" onerror="this.style.display='none';">`;
+                        if (poi.url) popupContent += `<br><a href="${poi.url}" target="_blank">Wikipedia-Eintrag</a>`;
                         popupContent += `</div>`;
-
-                        // Priorisiere Symbol nach Typ aus Dateinamen, dann nach Ära, dann Punkt
+                        
                         let iconToUse = icons[typeFromFilename] || icons[era] || icons['punkt'];
-                        if (!iconToUse) {
-                            log(`WARN: No icon found for type '${typeFromFilename}' or era '${era}'. Using default 'punkt'.`);
-                            iconToUse = icons['punkt'];
-                        }
-
                         let finalIconUrl = iconToUse.options.iconUrl;
                         const eraColor = cultureColors[era];
-
-                        // Dynamische Farbänderung für Typ-Icons
-                        // Hier wird geprüft, ob das Icon ein generisches ist (mit #000000 stroke/fill)
+                        
                         if (eraColor && finalIconUrl.startsWith('data:image/svg+xml;base64,')) {
                             let svgBase64 = finalIconUrl.substring('data:image/svg+xml;base64,'.length);
                             let svgString = atob(svgBase64); 
-                            
-                            // Ersetze alle #000000 (Schwarz) durch die Kulturfarbe
                             svgString = svgString.replace(/stroke="#000000"/g, `stroke="${eraColor}"`);
                             svgString = svgString.replace(/fill="#000000"/g, `fill="${eraColor}"`);
-                            
                             finalIconUrl = 'data:image/svg+xml;base64,' + btoa(svgString);
                             iconToUse = L.icon({ iconUrl: finalIconUrl, iconSize: iconToUse.options.iconSize });
-                            log(`DEBUG: Dynamically colored icon for ${poi.name} to ${eraColor}`);
                         }
-
-
-                        L.marker([poi.lat, poi.lon], { icon: iconToUse })
-                         .bindPopup(popupContent)
-                         .addTo(layer);
+                        L.marker([poi.lat, poi.lon], { icon: iconToUse }).bindPopup(popupContent).addTo(layer);
                     });
-                    
-                    if (!map.hasLayer(layer)) {
-                        map.addLayer(layer);
-                    }
+                    if (!map.hasLayer(layer)) map.addLayer(layer);
                 } else {
-                    if (map.hasLayer(layer)) {
-                        map.removeLayer(layer);
-                    }
+                    if (map.hasLayer(layer)) map.removeLayer(layer);
                 }
             };
 
-
-            window.setTerrainAutoMode = (enabled) => {
-                // Enables or disables automatic terrain layer switching
-                isTerrainAutoMode = enabled;
-                updateAutoTerrain(); // Immediately update terrain based on new mode
-            };
-
-            window.setTerrainOpacity = (opacity) => {
-                // Sets the opacity for the currently active terrain layer
-                currentTerrainOpacity = opacity;
-                updateAutoTerrain(); // Trigger update to apply new opacity
-            };
-
+            window.setTerrainAutoMode = (enabled) => { isTerrainAutoMode = enabled; updateAutoTerrain(); };
+            window.setTerrainOpacity = (opacity) => { currentTerrainOpacity = opacity; updateAutoTerrain(); };
             window.setTerrainEnhancement = function(value) {
-                // Applies CSS filters to the terrain pane for visual enhancement
                 const pane = map.getPane('terrainPane');
-                if (!pane) return; // Exit if terrain pane doesn't exist
-
-                if (value === 0) {
-                    pane.style.filter = 'none'; // Remove filters if value is 0
-                    return;
-                }
-                // Calculate contrast, brightness, and saturation based on the input value
+                if (!pane) return;
+                if (value === 0) { pane.style.filter = 'none'; return; }
                 const contrast = 100 + value * 2;
                 const brightness = 100 - (value / 5);
                 const saturate = 100 - (value / 1.5);
                 pane.style.filter = `contrast(${contrast}%) brightness(${brightness}%) saturate(${saturate}%)`;
             };
-
-            window.setView = (lat, lon, zoom = 13) => {
-                // Sets the map view to specified coordinates and zoom level
-                map.setView([lat, lon], zoom);
-            };
-
+            window.setView = (lat, lon, zoom = 13) => map.setView([lat, lon], zoom);
             window.addPermanentMarker = (data) => {
-                log(`DEBUG: Adding permanent marker: ${data.comment}, Icon: ${data.icon}`); // Debugging-Ausgabe
-                // Adds a permanent user-defined marker to the map
                 const marker = L.marker([data.lat, data.lon], {icon: icons[data.icon] || icons['punkt']}).addTo(map).bindPopup(`<b>${data.comment}</b>`);
-                permanentMarkers[data.id] = marker; // Store marker by its ID
+                permanentMarkers[data.id] = marker;
             };
-
             window.removePermanentMarker = (id) => {
-                // Removes a permanent marker from the map by its ID
-                if(permanentMarkers[id]) {
-                    map.removeLayer(permanentMarkers[id]);
-                    delete permanentMarkers[id]; // Remove from the dictionary
-                }
+                if(permanentMarkers[id]) { map.removeLayer(permanentMarkers[id]); delete permanentMarkers[id]; }
             };
-
             window.updateAllMarkers = (markers) => {
-                // Clears all existing permanent markers and redraws them from a new list
-                for(const id in permanentMarkers) {
-                    map.removeLayer(permanentMarkers[id]);
-                }
-                permanentMarkers = {}; // Reset the dictionary
-                markers.forEach(m => window.addPermanentMarker(m)); // Add all new markers
+                for(const id in permanentMarkers) { map.removeLayer(permanentMarkers[id]); }
+                permanentMarkers = {};
+                markers.forEach(m => window.addPermanentMarker(m));
             };
-
-            window.openMarkerPopup = (id) => {
-                // Opens the popup for a specific permanent marker by its ID
-                if(permanentMarkers[id]) permanentMarkers[id].openPopup();
-            };
-
+            window.openMarkerPopup = (id) => { if(permanentMarkers[id]) permanentMarkers[id].openPopup(); };
             window.addSearchMarker = (lat, lon, popupText) => {
-                // Adds a temporary marker for search results, removing any previous search marker
-                if (searchMarker) {
-                    map.removeLayer(searchMarker);
-                }
-                searchMarker = L.marker([lat, lon], {icon: icons['ziel']}).addTo(map); // Use 'ziel' icon
-                searchMarker.bindPopup(popupText).openPopup(); // Bind and open popup
+                if (searchMarker) { map.removeLayer(searchMarker); }
+                searchMarker = L.marker([lat, lon], {icon: icons['ziel']}).addTo(map).bindPopup(popupText).openPopup();
             };
+        
         </script>
         </html>
         
