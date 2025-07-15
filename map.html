@@ -8,6 +8,16 @@
             <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
             <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
             <script src="https://cdn.jsdelivr.net/npm/qwebchannel/qwebchannel.js"></script>
+            
+            <script>
+            
+        /*
+         (c) 2012, Michael Evans, Thomas J Bradley, GEOIQ, David vt., KlokanTech.com
+        */
+        L.Util.ajax=function(t,e){"use strict";if(void 0===window.XMLHttpRequest)window.XMLHttpRequest=function(){try{return new ActiveXObject("Microsoft.XMLHTTP.6.0")}catch(t){try{return new ActiveXObject("Microsoft.XMLHTTP.3.0")}catch(t){throw new Error("XMLHttpRequest is not supported")}}};var i=new window.XMLHttpRequest;i.open("GET",t),i.onreadystatechange=function(){4===i.readyState&&200===i.status&&(window.JSON?e(JSON.parse(i.responseText)):e(eval("("+i.responseText+")")))},i.send(null)};L.UtfGrid=(L.Layer||L.Class).extend({options:{subdomains:"abc",minZoom:0,maxZoom:18,tileSize:256,resolution:4,useJsonP:!0,pointerCursor:!0},_mouseOn:null,initialize:function(t,e){L.Util.setOptions(this,e),this._url=t,this._cache={},this.options.useJsonP&&(this._windowKey="_l_utfgrid_"+L.stamp(this),window[this._windowKey]={})},onAdd:function(t){this._map=t,this._container=this._map._container,this._update();var e=this._map.getZoom();this.options.minZoom<e&&this.options.maxZoom>e&&this._addEvents()},onRemove:function(){this._removeEvents(),this._mouseOn=null,this.options.useJsonP&&delete window[this._windowKey]},createTile:function(t){return this._loadTile(t),document.createElement("div")},_loadTile:function(t){var e=this.getTileUrl(t),i=this._tileCoordsToKey(t);this._cache[i]||(this.options.useJsonP?this._loadJsonP(e,i):L.Util.ajax(e,L.bind(function(t){this._cache[i]=t,this._update()},this)))},_loadJsonP:function(t,e){var i=document.getElementsByTagName("head")[0],s=document.createElement("script");return window[this._windowKey][e]=L.bind(function(t){this._cache[e]=t,delete window[this._windowKey][e],i.removeChild(s),this._update()},this),s.type="text/javascript",s.src=t,i.appendChild(s),s},_addEvents:function(){L.DomEvent.on(this._container,"mousemove",this._onMouseMove,this),L.DomEvent.on(this._map,"click",this._onClick,this),L.DomEvent.on(this._map,"zoomend",this._onZoom,this),L.DomEvent.on(this._map,"moveend",this._onMove,this)},_removeEvents:function(){L.DomEvent.off(this._container,"mousemove",this._onMouseMove,this),L.DomEvent.off(this._map,"click",this._onClick,this),L.DomEvent.off(this._map,"zoomend",this._onZoom,this),L.DomEvent.off(this._map,"moveend",this._onMove,this)},_onZoom:function(){this._cache={},this._update()},_onMove:function(){this._update()},_onMouseMove:function(t){var e=this._objectForEvent(t);e&&e.id!==(this._mouseOn&&this._mouseOn.id)?(this._fire("mouseover",this._mouseOn=e),this.options.pointerCursor&&(this._container.style.cursor="pointer")):e||!this._mouseOn||(this._fire("mouseout",this._mouseOn),this._mouseOn=null,this.options.pointerCursor&&(this._container.style.cursor=""))},_onClick:function(t){var e=this._objectForEvent(t);e&&this._fire("click",e)},_objectForEvent:function(t){var e=this._map.project(t.latlng),tile=this._getTile(e);if(!tile)return null;var i=Math.floor((e.x-tile.x)/this.options.resolution),s=Math.floor((e.y-tile.y)/this.options.resolution),o=tile.grid.length-1;if(i<0||i>o||s<0||s>o)return null;var n=this._utfDecode(tile.grid[s].charCodeAt(i)),r=tile.data[n];return r?L.Util.extend({latlng:t.latlng,id:n},r):null},_getTile:function(t){var e=this._getTileCoords(t),i=this._tileCoordsToKey(e),s=this._cache[i];return s?((s.x=this._getTilePoint(e).x),(s.y=this._getTilePoint(e).y)):this._loadTile(e),s},_getTileCoords:function(t){return{x:Math.floor(t.x/this.options.tileSize),y:Math.floor(t.y/this.options.tileSize),z:this._map.getZoom()}},_getTilePoint:function(t){return{x:t.x*this.options.tileSize,y:t.y*this.options.tileSize}},_tileCoordsToKey:function(t){return t.z+"/"+t.x+"/"+t.y},_update:function(){var t=this._map.getPixelBounds(),e=this._map.getZoom();if(!(e>this.options.maxZoom||e<this.options.minZoom)){var i=this._getTileCoords(t.min),s=this._getTileCoords(t.max);for(var o=i.x;o<=s.x;o++)for(var n=i.y;n<=s.y;n++)this._loadTile({x:o,y:n,z:e})}},_utfDecode:function(t){return t>=93&&t--,t>=35&&t--,t-32},getTileUrl:function(t){var e=L.Util.template(this._url,L.Util.extend({s:L.TileLayer.prototype._getSubdomain.call(this,t),z:t.z,x:t.x,y:t.y},this.options));return this.options.useJsonP?e+"?callback="+this._windowKey+"."+this._tileCoordsToKey(t):e},addLayer:function(){},removeLayer:function(){},_fire:L.Evented.prototype.fire});L.utfGrid=function(t,e){return new L.UtfGrid(t,e)};
+        
+            </script>
+            
             <style>
                 html, body, #map { height: 100%; width: 100%; margin: 0; }
                 .leaflet-popup-content-wrapper { border-radius: 8px; }
@@ -31,15 +41,9 @@
             var borderLayers = {};
             
             const terrainData = {"germany": {"layers": {"de_gelaende": {"url": "https://sgx.geodatenzentrum.de/wms_basemapde_schummerung", "options": {"layers": "de_basemapde_web_raster_hillshade", "format": "image/png", "transparent": true, "attribution": "Gel\u00e4nde &copy; GeoBasis-DE / BKG"}}, "by_lidar_schraeglicht": {"url": "https://geoservices.bayern.de/od/wms/dgm/v1/relief", "options": {"layers": "by_relief_schraeglicht", "format": "image/png", "transparent": true, "attribution": "Gel\u00e4nderelief &copy; LDBV", "version": "1.3.0", "maxZoom": 20}}, "by_lidar_kombiniert": {"url": "https://geoservices.bayern.de/od/wms/dgm/v1/relief", "options": {"layers": "by_relief_kombiniert", "format": "image/png", "transparent": true, "attribution": "Gel\u00e4nderelief &copy; LDBV", "version": "1.3.0", "maxZoom": 20}}}, "bounds": {"bavaria": [[47.2, 8.9], [50.6, 13.9]], "germany": [[47.2, 5.8], [55.1, 15.1]]}, "logic": {"bavaria": {"15": "by_lidar_kombiniert", "14": "by_lidar_schraeglicht", "0": "de_gelaende"}, "germany": {"0": "de_gelaende"}}}, "austria": {"layers": {"at_dtm": {"url": "https://maps.wien.gv.at/basemap/bmapgelaende/grau/google3857/{z}/{y}/{x}.jpeg", "options": {"attribution": "Gel\u00e4ndedarstellung aus Digitalem Gel\u00e4ndemodell (DGM) | Datenquelle: basemap.at"}}}, "bounds": {"austria": [[46.3, 9.5], [49.1, 17.2]]}, "logic": {"austria": {"0": "at_dtm"}}}, "switzerland": {"layers": {"ch_dtm": {"url": "https://wms.geo.admin.ch/", "options": {"layers": "ch.swisstopo.swissalti3d-reliefschattierung", "format": "image/png", "transparent": true, "attribution": "Relief \u00a9 swisstopo", "version": "1.3.0"}}}, "bounds": {"switzerland": [[45.8, 5.9], [47.8, 10.5]]}, "logic": {"switzerland": {"0": "ch_dtm"}}}, "italy": {"layers": {"it_dtm": {"url": "https://ows.terrestris.de/osm/service?", "options": {"layers": "SRTM30-Hillshade", "format": "image/png", "transparent": true, "attribution": "SRTM30-Hillshade &copy; terrestris", "version": "1.1.1", "srs": "EPSG:3857"}}}, "bounds": {"italy": [[35.5, 6.6], [47.1, 18.5]]}, "logic": {"italy": {"0": "it_dtm"}}}};
-
-            const icons_data = {"kelten": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNlYTc0MTYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI5Ij48L2NpcmNsZT48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxIj48L2NpcmNsZT48cGF0aCBkPSJNMTIgM3Y0bS00IDVoNG01IDR2NE03IDEyaDRtNSA1aC00Ij48L3BhdGg+PC9zdmc+", "iconSize": [24, 24]}, "r\u00f6mer": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy52My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDdBY0MiHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgNnYxNG0tNCAwVjEwbTggN1YxMG0tNy41IDJIMTYuNU04IDZoOGm0IDhoLThtLTItMmgybTQtMmgyIi8+PC9zdmc+", "iconSize": [24, 24]}, "mittelalter": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMyOGE3NDUiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMCA1djE0aDI0VjVabTItMnYyaDIwVjN6TTQgMjJoMnYtM0g0em0xNCgyaDJ2LTNIMTh6Ij48L3BhdGg+PC9zdmc+", "iconSize": [24, 24]}, "weltkriege": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy52My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNkYzI2MjYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjIgMTEuMDhWMjBIMlYxMS4wOE0xNyA5di00TDEyIDFsLTUgNFY5bTUgMmMwIDEuNjYtMS4zNCAzLTMgM3MtMy0xLjM0LTMtM2gxLjVNMCAwaDI0djI0SDB6Ij48L3BhdGg+PC9sZz4=", "iconSize": [24, 24]}, "punkt": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM2YzcyYjAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI4Ij48L2NpcmNsZT48L3N2Zz4=", "iconSize": [24, 24]}, "m\u00fcnze": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNGRkQ3MDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj4KICA8Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCI+PC9jaXJjbGU+CiAgPHBhdGggZD0iTTE1IDhhMiAyIDAgMCAxIDIgMnY0YTIgMiAwIDAgMS0yIDJoLTZhMiAyIDAgMCAxLTIgMlYxMGEyIDIgMCAwIDEgMi0yaDZaIj48L3BhdGg+CiAgPGxpbmUgeDE9IjEyIiB5MT0iMTAiIHgyPSIxMiIgeTI9IjE0Ij48L2xpbmU+Cjwvc3ZnPg==", "iconSize": [24, 24]}, "ziel": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNEQzE0M0MiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj4KICA8Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCI+PC9jaXJjbGU+CiAgPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iNiI+PC9jaXJjbGU+CiAgPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMiI+PC9jaXJjbGU+Cjwvc3ZnPg==", "iconSize": [24, 24]}, "siedlung": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyA5bDktNyA5IDd2MTFhMiAyIDAgMCAxLTIgMkg1YTIgMiAwIDAgMS0yLTJ6Ij48L3BhdGg+PHBvbHlsaW5lIHBvaW50cz0iOSAyMiA5IDEyIDE1IDEyIDE1IDIyIj48L3BvbHlsaW5lPjwvc3ZnPg==", "iconSize": [24, 24]}, "schatz": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cmVjdCB4PSIyIiB5PSI4IiB3aWR0aD0iMjAiIGhlaWdodD0iMTQiIHJ4PSIyIiByeT0iMiI+PC9yZWN0PjxwYXRoIGQ9Ik0xMiAydjZtLTQgMGh4Ij48L3BhdGg+PHBhdGggZD0iTTcgMTVoMTAiPjwvcGF0aD48L3N2Zz4=", "iconSize": [24, 24]}, "kastell": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMyAzYTEgMSAwIDAgMSAxLTFoMTZhMSAxIDAgMCAxIDEgMXYxOGExIDEgMCAwIDEtMSAxSDNhMSAxIDAgMCAxLTEtMVY0YTEgMSAwIDAgMSAxLTF6Ij48L3BhdGg+PGxpbmUgeDE9IjEyIiB5MT0iMyIgeDI9IjEyIiB5Mj0iMjEiPjwvbGluZT48bGluZSB4MT0iMyIgeTE9IjkiIHgyPSIyMSIgeTI9IjkiPjwvbGluZT48bGluZSB4MT0iMyIgeTE9IjE1IiB4Mj0iMjEiIHkyPSIxNSI+PC9saW5lPjxsaW5lIHgxPSI5IiB5MT0iMyIgeDI9IjkiIHkyPSI5Ij48L2xpbmU+PGxpbmUgeDE9IjE1IiB5MT0iMyIgeDI9IjE1IiB5Mj0iOSI+PC9saW5lPjxsaW5lIHgxPSI5IiB5MT0iMTUiIHgyPSI5IiB5Mj0iMjEiPjwvbGluZT48bGluZSB4MT0iMTUiIHkxPSIxNSIgeDI9IjE1IiB5Mj0iMjEiPjwvbGluZT48L3N2Zz4=", "iconSize": [24, 24]}, "burg": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjIgMjB2LTJoLTJ2Mmgyem0tMi00aDJ2LTJoLTJ2MnptLTQtMi4yVjIwaDR2LTQuMkwxMiAxMi44bC04IDQuNXYtNC40bDEwLjYtNi4ybC0yLjYtMS41TDEyIDJsLTcgNHYxMGMwIDIgMCAyIDIgMmgyMGMwIDIgMCAyIDIgMiAyem0tMTAgMGgybTAtNmgwbS00IDhoNGm0LTZoMGm0IDhoNGm0LTZoMCI+PC9wYXRoPjwvc3ZnPg==", "iconSize": [24, 24]}, "bunker": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy52My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgMjJzOC00IDgtMTBWNWwtOC0zLTggM3Y3YzAgNiA4IDEwIDggMTB6Ij48L3BhdGg+PC9zdmc+", "iconSize": [24, 24]}, "schanze": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMiAyMmg0bDIuNS02IDUtNiAyLjUgNmg0VjJoLTIwWiIvPjwvc3ZnPg==", "iconSize": [24, 24]}};
-            const cultureColors = {"kelten": "#ea7416", "r\u00f6mer": "#007AcC", "mittelalter": "#28a745", "weltkriege": "#dc2626"};
+            const icons_data = {"start": {"iconUrl": "assets/vectors/start.svg", "iconSize": [32, 32]}, "ziel": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNEQzE0M0MiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj4KICA8Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCI+PC9jaXJjbGU+CiAgPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iNiI+PC9jaXJjbGU+CiAgPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMiI+PC9jaXJjbGU+Cjwvc3ZnPg==", "iconSize": [32, 32]}, "viereckschanze": {"iconUrl": "assets/vectors/viereckschanze.svg", "iconSize": [32, 32]}, "kastell": {"iconUrl": "assets/vectors/castle.svg", "iconSize": [32, 32]}, "siedlung": {"iconUrl": "assets/vectors/settlement.svg", "iconSize": [32, 32]}, "coin": {"iconUrl": "assets/vectors/coin.svg", "iconSize": [32, 32]}, "treasure": {"iconUrl": "assets/vectors/treasure.svg", "iconSize": [32, 32]}, "modern": {"iconUrl": "assets/vectors/eagle.svg", "iconSize": [32, 32]}, "punkt": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM2YzcyYjAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI4Ij48L2NpcmNsZT48L3N2Zz4=", "iconSize": [32, 32]}, "m\u00fcnze": {"iconUrl": "assets/vectors/coin.svg", "iconSize": [32, 32]}, "burg": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjIgMjB2LTJoLTJ2Mmgyem0tMi00aDJ2LTJoLTJ2MnptLTQtMi4yVjIwaDR2LTQuMkwxMiAxMi44bC04IDQuNXYtNC40bDEwLjYtNi4ybC0yLjYtMS41TDEyIDJsLTcgNHYxMGMwIDIgMCAyIDIgMmgyMGMwIDIgMCAyIDIgMiAyem0tMTAgMGgybTAtNmgwbS00IDhoNGm0LTZoMGm0IDhoNGm0LTZoMCI+PC9wYXRoPjwvc3ZnPg==", "iconSize": [32, 32]}, "bunker": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy52My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgMjJzOC00IDgtMTBWNWwtOC0zLTggM3Y3YzAgNiA4IDEwIDggMTB6Ij48L3BhdGg+PC9zdmc+", "iconSize": [32, 32]}, "schanze": {"iconUrl": "assets/vectors/viereckschanze.svg", "iconSize": [32, 32]}};
+            const cultureColors = {"kelten": "#000000", "r\u00f6mer": "#007AcC", "mittelalter": "#28a745", "weltkriege": "#dc2626", "modern": "#000000"};
             const icons = {};
-            for (const key in icons_data) {
-                if (icons_data.hasOwnProperty(key)) {
-                    icons[key] = L.icon(icons_data[key]);
-                }
-            }
 
             function log(msg) { if(window.bridge) window.bridge.log(msg); }
 
@@ -51,15 +55,90 @@
             });
 
             function initializeMap() {
+                // ### FIX: Override Leaflet's AJAX function to use our Python bridge ###
+                var requestCallbacks = {};
+                L.Util.ajax = function(url, callback) {
+                    const requestId = 'req_' + Math.random().toString(36).substr(2, 9);
+                    requestCallbacks[requestId] = callback;
+                    window.bridge.fetchUrl(requestId, url);
+                };
+
+                window.onDataFetched = function(requestId, data) {
+                    if (requestCallbacks[requestId]) {
+                        requestCallbacks[requestId](data);
+                        delete requestCallbacks[requestId];
+                    }
+                };
+                
+                window.onDataFetchError = function(requestId, error) {
+                    log(`Fetch error for ${requestId}: ${error}`);
+                    delete requestCallbacks[requestId];
+                };
+
+                for (const key in icons_data) {
+                    if (icons_data.hasOwnProperty(key)) {
+                        icons[key] = L.icon(icons_data[key]);
+                    }
+                }
+                
                 map = L.map('map', { crs: L.CRS.EPSG3857, center: [49.5, 12.5], zoom: 6 });
                 
+                baseLayers['OpenStreetMap'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
+                }).addTo(map);
+
+                baseLayers['Satellit'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles &copy; Esri', maxZoom: 19
+                });
+
+                baseLayers['Topographisch'] = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                    attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)', maxZoom: 17
+                });
+                
+                baseLayers['Roman Empire'] = L.tileLayer('https://dh.gu.se/tiles/imperium/{z}/{x}/{y}.png', {
+                    attribution: '<a href="https://imperium.ahlfeldt.se/" target="_blank">DARE</a>',
+                    maxNativeZoom: 11,
+                    maxZoom: 19
+                });
+
+                L.control.layers(baseLayers).addTo(map);
+                
+                var dareUtfGrid = L.utfGrid('https://dh.gu.se/tiles/pleiades/{z}/{x}/{y}.grid.json', {
+                    resolution: 4,
+                    useJsonP: false
+                });
+
+                dareUtfGrid.on('click', function (e) {
+                    if (e.data) {
+                        const key = Object.keys(e.data)[0];
+                        if (key) {
+                            const placeInfo = e.data[key];
+                            var content = `<b>${placeInfo.name}</b><br><a href="${placeInfo.pleiades_url}" target="_blank">Details auf Pleiades ansehen</a>`;
+                            L.popup()
+                                .setLatLng(e.latlng)
+                                .setContent(content)
+                                .openOn(map);
+                        }
+                    }
+                });
+                dareUtfGrid.on('mouseover', function (e) { map.getContainer().style.cursor = 'pointer'; });
+                dareUtfGrid.on('mouseout', function (e) { map.getContainer().style.cursor = ''; });
+
+                map.on('baselayerchange', function (e) {
+                    if (e.name === 'Roman Empire') {
+                        map.addLayer(dareUtfGrid);
+                    } else {
+                        if (map.hasLayer(dareUtfGrid)) {
+                            map.removeLayer(dareUtfGrid);
+                        }
+                    }
+                });
+
                 map.createPane('terrainPane').style.zIndex = 450;
                 map.getPane('terrainPane').style.pointerEvents = 'none';
                 map.createPane('borderPane').style.zIndex = 500;
                 map.getPane('borderPane').style.pointerEvents = 'none';
 
-                baseLayers['Standard'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 }).addTo(map);
-                
                 const paneOption = { pane: 'terrainPane' };
                 for (const countryName in terrainData) {
                     const country = terrainData[countryName];
@@ -67,14 +146,9 @@
                         if (!terrainLayers[layerKey]) {
                             const layerInfo = country.layers[layerKey];
                             let layerOptions = { ...layerInfo.options, ...paneOption };
-
-                            // --- FIX: Handle both 'crs' and 'srs' parameters ---
                             let crs_string = layerOptions.crs || layerOptions.srs;
-                            if (crs_string && typeof crs_string === 'string') {
-                                if (crs_string === 'EPSG:3857') {
-                                    // Set the CRS object that Leaflet understands
-                                    layerOptions.crs = L.CRS.EPSG3857;
-                                }
+                            if (crs_string && typeof crs_string === 'string' && crs_string === 'EPSG:3857') {
+                                layerOptions.crs = L.CRS.EPSG3857;
                             }
 
                             if (layerInfo.url.includes('{z}')) {
@@ -97,6 +171,7 @@
                 
                 if(window.bridge) window.bridge.onMapReady();
             }
+            
             
             function updateAutoTerrain() {
                 if (!isTerrainAutoMode) {
@@ -138,8 +213,7 @@
                 let filterStyle = (zoom >= 15 && targetKey) ? 'brightness(70%) contrast(120%)' : 'none';
                 mapContainer.style.filter = filterStyle;
             }
-            
-            
+
             window.updateBorderLayer = function(level, geoJsonData) {
                 if (borderLayers[level]) {
                     borderLayers[level].clearLayers();
@@ -184,33 +258,46 @@
 
                 if (show) {
                     layer.clearLayers();
-                    const era = layerKey.split('_')[0]; 
-                    const typeFromFilename = layerKey.replace(/\.json$/, '').split('_').slice(1).join('_');
-
+                    const pathParts = layerKey.split('/');
+                    const era = pathParts.length > 1 ? pathParts[0] : 'unknown';
+                    let filename = pathParts.length > 1 ? pathParts[1] : pathParts[0];
+                    let typeFromFilename = filename.replace(/\.json$/, '');
+                    
+                    if (filename.includes('viereckschanze')) {
+                        typeFromFilename = 'viereckschanze';
+                    } else if (filename.includes('siedlung') || filename.includes('oppida')) {
+                        typeFromFilename = 'siedlung';
+                    } else {
+                        typeFromFilename = typeFromFilename.split('_').slice(1).join('_');
+                    }
+                    
                     data.forEach(poi => {
-                        if (typeof poi.lat !== 'number' || typeof poi.lon !== 'number' || isNaN(poi.lat) || isNaN(poi.lon)) return;
-                        let popupContent = `<div class="poi-popup-content"><b>${poi.name}</b>`;
-                        if (poi.image_url) popupContent += `<br><img src="${poi.image_url}" alt="${poi.name}" onerror="this.style.display='none';">`;
-                        if (poi.url) popupContent += `<br><a href="${poi.url}" target="_blank">Wikipedia-Eintrag</a>`;
-                        popupContent += `</div>`;
-                        
-                        let iconToUse = icons[typeFromFilename] || icons[era] || icons['punkt'];
-                        let finalIconUrl = iconToUse.options.iconUrl;
-                        const eraColor = cultureColors[era];
-                        
-                        if (eraColor && finalIconUrl.startsWith('data:image/svg+xml;base64,')) {
-                            let svgBase64 = finalIconUrl.substring('data:image/svg+xml;base64,'.length);
-                            let svgString = atob(svgBase64); 
-                            svgString = svgString.replace(/stroke="#000000"/g, `stroke="${eraColor}"`);
-                            svgString = svgString.replace(/fill="#000000"/g, `fill="${eraColor}"`);
-                            finalIconUrl = 'data:image/svg+xml;base64,' + btoa(svgString);
-                            iconToUse = L.icon({ iconUrl: finalIconUrl, iconSize: iconToUse.options.iconSize });
+                        // ### FIX: Added check to prevent error on invalid POI data ###
+                        if (poi && typeof poi.lat === 'number' && typeof poi.lon === 'number') {
+                            let popupContent = `<div class="poi-popup-content"><b>${poi.name}</b>`;
+                            if (poi.zusammenfassung) popupContent += `<br><p>${poi.zusammenfassung.substring(0, 200)}...</p>`;
+                            if (poi.url) popupContent += `<br><a href="${poi.url}" target="_blank">Weitere Infos</a>`;
+                            popupContent += `</div>`;
+                            
+                            let iconToUse = icons[typeFromFilename] || icons[era] || icons['punkt'];
+                            L.marker([poi.lat, poi.lon], { icon: iconToUse }).bindPopup(popupContent).addTo(layer);
+                        } else {
+                            log(`[JS Warning] Skipping invalid POI object in ${layerKey}: ${JSON.stringify(poi)}`);
                         }
-                        L.marker([poi.lat, poi.lon], { icon: iconToUse }).bindPopup(popupContent).addTo(layer);
                     });
                     if (!map.hasLayer(layer)) map.addLayer(layer);
                 } else {
                     if (map.hasLayer(layer)) map.removeLayer(layer);
+                }
+            };
+            
+            window.addPermanentMarker = function(data) {
+                // ### FIX: Added check to prevent error on invalid marker data ###
+                if(data && typeof data.lat === 'number' && typeof data.lon === 'number') {
+                    const marker = L.marker([data.lat, data.lon], {icon: icons[data.icon] || icons['punkt']}).addTo(map).bindPopup(`<b>${data.comment}</b>`);
+                    permanentMarkers[data.id] = marker;
+                } else {
+                    log(`[JS Warning] Skipping invalid permanent marker: ${JSON.stringify(data)}`);
                 }
             };
 
@@ -226,22 +313,16 @@
                 pane.style.filter = `contrast(${contrast}%) brightness(${brightness}%) saturate(${saturate}%)`;
             };
             window.setView = (lat, lon, zoom = 13) => map.setView([lat, lon], zoom);
-            window.addPermanentMarker = (data) => {
-                const marker = L.marker([data.lat, data.lon], {icon: icons[data.icon] || icons['punkt']}).addTo(map).bindPopup(`<b>${data.comment}</b>`);
-                permanentMarkers[data.id] = marker;
-            };
-            window.removePermanentMarker = (id) => {
-                if(permanentMarkers[id]) { map.removeLayer(permanentMarkers[id]); delete permanentMarkers[id]; }
-            };
-            window.updateAllMarkers = (markers) => {
-                for(const id in permanentMarkers) { map.removeLayer(permanentMarkers[id]); }
-                permanentMarkers = {};
-                markers.forEach(m => window.addPermanentMarker(m));
+            window.removePermanentMarker = (id) => { if(permanentMarkers[id]) { map.removeLayer(permanentMarkers[id]); delete permanentMarkers[id]; }};
+            window.updateAllMarkers = (markers) => { 
+                for(const id in permanentMarkers) { map.removeLayer(permanentMarkers[id]); } 
+                permanentMarkers = {}; 
+                markers.forEach(m => window.addPermanentMarker(m)); 
             };
             window.openMarkerPopup = (id) => { if(permanentMarkers[id]) permanentMarkers[id].openPopup(); };
             window.addSearchMarker = (lat, lon, popupText) => {
                 if (searchMarker) { map.removeLayer(searchMarker); }
-                searchMarker = L.marker([lat, lon], {icon: icons['ziel']}).addTo(map).bindPopup(popupText).openPopup();
+                searchMarker = L.marker([lat, lon], {icon: icons['start']}).addTo(map).bindPopup(popupText).openPopup();
             };
         
         </script>

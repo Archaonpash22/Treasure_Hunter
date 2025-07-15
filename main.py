@@ -4,9 +4,11 @@ import json
 import os
 import uuid
 import webbrowser
-import importlib
+import http.server
+import socketserver
+import threading
+import requests
 
-# --- Using remote debugging, the most reliable method ---
 # This must be set before the QApplication is instantiated.
 os.environ["QTWEBENGINE_REMOTE_DEBUGGING"] = "8888"
 
@@ -14,7 +16,7 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLineEdit, QPushButton, QLabel, QMessageBox, QStatusBar, QSlider,
     QTextEdit, QComboBox, QListWidget, QListWidgetItem, QDialog,
-    QDialogButtonBox, QFormLayout, QCheckBox, QFrame, QTreeWidget, QTreeWidgetItem
+    QDialogButtonBox, QFormLayout, QCheckBox, QFrame
 )
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import QFile, QTextStream, Qt, pyqtSignal, QThread
@@ -30,6 +32,33 @@ from assets.countries.europe import austria as austria_assets
 from assets.countries.europe import switzerland as switzerland_assets
 from assets.countries.europe import italy as italy_assets
 
+class UrlFetcherThread(QThread):
+    """ A QThread to fetch data from a URL in the background without freezing the UI. """
+    data_ready = pyqtSignal(str, object) # request_id, data
+    error = pyqtSignal(str, str) # request_id, error_message
+
+    def __init__(self, request_id, url):
+        super().__init__()
+        self.request_id = request_id
+        self.url = url
+        self.is_running = True
+
+    def run(self):
+        try:
+            if not self.is_running: return
+            response = requests.get(self.url, timeout=10)
+            if not self.is_running: return
+            response.raise_for_status()
+            self.data_ready.emit(self.request_id, response.json())
+        except requests.exceptions.RequestException as e:
+            if self.is_running: self.error.emit(self.request_id, str(e))
+        except json.JSONDecodeError:
+            if self.is_running: self.error.emit(self.request_id, "Invalid JSON response")
+
+    def stop(self):
+        self.is_running = False
+
+
 class BorderFetcherThread(QThread):
     """
     A QThread to fetch border data in the background to avoid freezing the UI.
@@ -41,13 +70,18 @@ class BorderFetcherThread(QThread):
         super().__init__()
         self.admin_level = admin_level
         self.bbox = bbox
+        self.is_running = True
 
     def run(self):
         try:
+            if not self.is_running: return
             data = border_fetcher.get_admin_borders(self.bbox, self.admin_level)
-            self.data_ready.emit(self.admin_level, data)
+            if self.is_running: self.data_ready.emit(self.admin_level, data)
         except Exception as e:
-            self.error.emit(str(e))
+            if self.is_running: self.error.emit(str(e))
+            
+    def stop(self):
+        self.is_running = False
 
 
 class AddMarkerDialog(QDialog):
@@ -63,7 +97,7 @@ class AddMarkerDialog(QDialog):
         self.comment_input.setPlaceholderText("z.B. Keltenschanze, Römische Münze...")
         self.layout.addRow("Kommentar:", self.comment_input)
         self.icon_selector = QComboBox()
-        self.icon_selector.addItems(["Punkt", "Münze", "Ziel"])
+        self.icon_selector.addItems(["Start", "Punkt", "Münze", "Ziel", "Viereckschanze", "Kastell", "Siedlung", "Coin", "Treasure", "Modern"])
         self.layout.addRow("Icon:", self.icon_selector)
         self.button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         self.button_box.accepted.connect(self.accept)
@@ -86,12 +120,13 @@ class TreasureHunterApp(QMainWindow):
         super().__init__()
         self.setWindowTitle("Treasure Hunter")
         self.setGeometry(100, 100, 1300, 850)
-        self.geolocator = Nominatim(user_agent="treasure_hunter_app_v35")
+        self.geolocator = Nominatim(user_agent="treasure_hunter_app_v40")
         self.markers = {}
         self.markers_file = "markers.json"
         self.poi_data = {}
         self.current_location = None
         self.border_fetcher_thread = None
+        self.url_fetcher_threads = {}
         
         self.init_ui()
         self.setStatusBar(QStatusBar(self))
@@ -155,7 +190,6 @@ class TreasureHunterApp(QMainWindow):
         control_layout.addWidget(self.terrain_checkbox)
         self.opacity_slider = QSlider(Qt.Orientation.Horizontal)
         self.opacity_slider.setRange(0, 100)
-        # --- FIX: Set default opacity to 100% ---
         self.opacity_slider.setValue(100)
         self.opacity_slider.valueChanged.connect(self.set_terrain_opacity)
         control_layout.addWidget(self.opacity_slider)
@@ -214,6 +248,7 @@ class TreasureHunterApp(QMainWindow):
         self.map_widget.bridge.log_requested.connect(self.add_log)
         self.map_widget.bridge.map_ready.connect(self.on_map_ready)
         self.map_widget.bridge.map_right_clicked.connect(self.handle_map_right_click)
+        self.map_widget.bridge.fetch_url_requested.connect(self.fetch_url_from_js)
         
         main_layout.addWidget(control_panel)
         main_layout.addWidget(self.map_widget)
@@ -235,10 +270,25 @@ class TreasureHunterApp(QMainWindow):
         debug_menu.addAction(dev_tools_action)
 
     def open_remote_debugger(self):
-        """
-        Opens the remote debugging URL in the default web browser.
-        """
         webbrowser.open("http://localhost:8888")
+
+    def fetch_url_from_js(self, request_id, url):
+        thread = UrlFetcherThread(request_id, url)
+        thread.data_ready.connect(self.on_url_data_ready)
+        thread.error.connect(self.on_url_fetch_error)
+        self.url_fetcher_threads[request_id] = thread
+        thread.start()
+
+    def on_url_data_ready(self, request_id, data):
+        self.map_widget.run_js(f"window.onDataFetched('{request_id}', {json.dumps(data)});")
+        if request_id in self.url_fetcher_threads:
+            del self.url_fetcher_threads[request_id]
+
+    def on_url_fetch_error(self, request_id, error_msg):
+        self.add_log(f"Proxy Error for request {request_id}: {error_msg}")
+        self.map_widget.run_js(f"window.onDataFetchError('{request_id}', '{error_msg}');")
+        if request_id in self.url_fetcher_threads:
+            del self.url_fetcher_threads[request_id]
 
     def on_map_ready(self):
         self.add_log("[JS] Karte ist bereit.")
@@ -524,17 +574,41 @@ class TreasureHunterApp(QMainWindow):
         if self.markers:
             self.map_widget.update_all_markers(list(self.markers.values()))
 
+    def closeEvent(self, event):
+        """ Handles the window close event to ensure clean shutdown of threads. """
+        self.add_log("Anwendung wird beendet... Warte auf Threads.")
+        
+        # Stop border fetcher thread if it's running
+        if self.border_fetcher_thread and self.border_fetcher_thread.isRunning():
+            self.border_fetcher_thread.stop()
+            self.border_fetcher_thread.wait() # Wait for it to finish
+
+        # Stop all URL fetcher threads
+        for request_id, thread in list(self.url_fetcher_threads.items()):
+            if thread.isRunning():
+                thread.stop()
+                thread.wait()
+
+        self.add_log("Alle Threads beendet. Anwendung wird geschlossen.")
+        event.accept()
+
+
 def main():
+    # The local server is not needed with the Python proxy approach
     app = QApplication(sys.argv)
+    
+    # Lade das Stylesheet
     qss_file = QFile("dark_theme.qss")
     if qss_file.open(QFile.OpenModeFlag.ReadOnly | QFile.OpenModeFlag.Text):
         stream = QTextStream(qss_file)
         app.setStyleSheet(stream.readAll())
     else:
-        print("Warning: dark_theme.qss not found or could not be opened.")
+        print("Warnung: dark_theme.qss nicht gefunden oder konnte nicht geöffnet werden.")
+        
     window = TreasureHunterApp()
     window.show()
     sys.exit(app.exec())
+
 
 if __name__ == "__main__":
     main()
