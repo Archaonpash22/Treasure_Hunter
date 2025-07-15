@@ -1,71 +1,78 @@
 import requests
 import json
 
-def overpass_to_geojson(overpass_json):
-    """
-    Converts the JSON output from the Overpass API to a standard GeoJSON
-    FeatureCollection that Leaflet can understand.
-    """
-    features = []
-    for element in overpass_json.get('elements', []):
-        # Ensure the element has geometry data to draw
-        if 'geometry' not in element:
-            continue
+# URL for high-resolution country borders - RESTORED TO WORKING VERSION
+COUNTRIES_URL = "https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson"
 
-        # Convert Overpass geometry (a list of {lat, lon} dicts) 
-        # to GeoJSON coordinates (a list of [lon, lat] lists)
-        coords = [[pt['lon'], pt['lat']] for pt in element['geometry']]
+# URLs for specific, high-quality GeoJSON data for major European countries
+COUNTRY_SPECIFIC_REGIONS = {
+    "Germany": "https://raw.githubusercontent.com/isellsoap/deutschlandGeoJSON/main/2_bundeslaender/1_sehr_hoch.geo.json",
+    "Italy": "https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_regions.geojson",
+    "France": "https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/regions.geojson",
+    "Spain": "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/spain-communities.geojson",
+    "Austria": "https://raw.githubusercontent.com/codeforgermany/click_that_hood/master/public/data/austria-states.geojson",
+    "Switzerland": "https://raw.githubusercontent.com/ginseng666/GeoJSON-TopoJSON-Switzerland/master/2021/simplified-geojson/cantons_95_geo.json"
+}
 
-        # Create the GeoJSON Feature
-        feature = {
-            'type': 'Feature',
-            'properties': element.get('tags', {}),
-            'geometry': {
-                # Boundaries are typically polygons.
-                'type': 'Polygon',
-                # GeoJSON polygons require an extra level of nesting for their coordinates
-                'coordinates': [coords] 
-            }
-        }
-        features.append(feature)
+# Fallback URL for other countries' regions from Natural Earth
+GENERAL_REGIONS_URL = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson"
 
-    return {
-        'type': 'FeatureCollection',
-        'features': features
-    }
+# A specific list of European countries to keep the menu clean and fast
+EUROPEAN_COUNTRIES = [
+    "Albania", "Andorra", "Austria", "Belarus", "Belgium", "Bosnia and Herzegovina",
+    "Bulgaria", "Croatia", "Cyprus", "Czechia", "Denmark", "Estonia", "Finland",
+    "France", "Germany", "Greece", "Hungary", "Iceland", "Ireland", "Italy",
+    "Kosovo", "Latvia", "Liechtenstein", "Lithuania", "Luxembourg", "Malta",
+    "Moldova", "Monaco", "Montenegro", "Netherlands", "North Macedonia", "Norway",
+    "Poland", "Portugal", "Romania", "Russia", "San Marino", "Serbia", "Slovakia",
+    "Slovenia", "Spain", "Sweden", "Switzerland", "Ukraine", "United Kingdom", "Vatican City"
+]
 
-
-def get_admin_borders(bbox, admin_level):
+def get_geojson_from_url(url):
     """
-    Fetches administrative boundaries from the Overpass API for a given bounding box and admin level.
-    The fetched data is then converted to GeoJSON.
+    Fetches GeoJSON data from a given URL.
     """
-    # Overpass API endpoint
-    overpass_url = "https://overpass-api.de/api/interpreter"
-    
-    # The Overpass QL query to find administrative boundaries within the bbox
-    query = f"""
-    [out:json][timeout:30];
-    (
-      relation["boundary"="administrative"]["admin_level"="{admin_level}"]({bbox});
-    );
-    out geom;
-    """
-    
     try:
-        # Make the request to the API
-        response = requests.get(overpass_url, params={'data': query})
-        response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
-        
-        # ** THE FIX IS HERE: Convert the raw data to GeoJSON before returning **
-        overpass_data = response.json()
-        return overpass_to_geojson(overpass_data)
-
+        response = requests.get(url, timeout=30) # Increased timeout for larger files
+        response.raise_for_status()
+        return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"An error occurred while fetching data from Overpass API: {e}")
-        # Return an empty GeoJSON feature collection on error
-        return {"type": "FeatureCollection", "features": []}
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON from Overpass API: {e}")
+        print(f"Error fetching data from {url}: {e}")
+        raise
+    except json.JSONDecodeError:
+        print(f"Error decoding JSON from {url}")
+        raise
+
+def get_admin_borders(admin_level, country_name=None):
+    """
+    Returns GeoJSON data for a given administrative level.
+    """
+    if admin_level == 4:  # All Countries
+        print("Fetching all country borders...")
+        return get_geojson_from_url(COUNTRIES_URL)
+    elif admin_level == 6:  # Regions
+        if country_name == "ALL":
+             print("Fetching all European regions...")
+             return get_geojson_from_url(GENERAL_REGIONS_URL)
+        if country_name in COUNTRY_SPECIFIC_REGIONS:
+            print(f"Fetching specific regions for {country_name}...")
+            return get_geojson_from_url(COUNTRY_SPECIFIC_REGIONS[country_name])
+        elif country_name:
+             # Fallback to the general regions file for other countries
+            print(f"Fetching regions for {country_name} from general source...")
+            all_regions = get_geojson_from_url(GENERAL_REGIONS_URL)
+            country_features = [
+                f for f in all_regions.get('features', [])
+                if f.get('properties', {}).get('admin') == country_name
+            ]
+            return {"type": "FeatureCollection", "features": country_features}
+        else:
+             return {"type": "FeatureCollection", "features": []}
+    else:
         return {"type": "FeatureCollection", "features": []}
 
+def get_country_list():
+    """
+    Returns the hardcoded list of European countries.
+    """
+    return EUROPEAN_COUNTRIES

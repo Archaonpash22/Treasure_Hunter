@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLineEdit, QPushButton, QLabel, QMessageBox, QStatusBar, QSlider,
     QTextEdit, QComboBox, QListWidget, QListWidgetItem, QDialog,
-    QDialogButtonBox, QFormLayout, QCheckBox, QFrame
+    QDialogButtonBox, QFormLayout, QCheckBox, QFrame, QMenu
 )
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import QFile, QTextStream, Qt, pyqtSignal, QThread
@@ -63,20 +63,20 @@ class BorderFetcherThread(QThread):
     """
     A QThread to fetch border data in the background to avoid freezing the UI.
     """
-    data_ready = pyqtSignal(int, dict)
+    data_ready = pyqtSignal(int, str, dict)
     error = pyqtSignal(str)
-
-    def __init__(self, admin_level, bbox):
+    
+    def __init__(self, admin_level, country_name=None):
         super().__init__()
         self.admin_level = admin_level
-        self.bbox = bbox
+        self.country_name = country_name
         self.is_running = True
 
     def run(self):
         try:
             if not self.is_running: return
-            data = border_fetcher.get_admin_borders(self.bbox, self.admin_level)
-            if self.is_running: self.data_ready.emit(self.admin_level, data)
+            data = border_fetcher.get_admin_borders(self.admin_level, self.country_name)
+            if self.is_running: self.data_ready.emit(self.admin_level, self.country_name, data)
         except Exception as e:
             if self.is_running: self.error.emit(str(e))
             
@@ -193,13 +193,7 @@ class TreasureHunterApp(QMainWindow):
         self.opacity_slider.setValue(100)
         self.opacity_slider.valueChanged.connect(self.set_terrain_opacity)
         control_layout.addWidget(self.opacity_slider)
-        enhancement_label = QLabel("Konturenschärfe:")
-        control_layout.addWidget(enhancement_label)
-        self.enhancement_slider = QSlider(Qt.Orientation.Horizontal)
-        self.enhancement_slider.setRange(0, 100)
-        self.enhancement_slider.setValue(0)
-        self.enhancement_slider.valueChanged.connect(self.set_terrain_enhancement)
-        control_layout.addWidget(self.enhancement_slider)
+        
         control_layout.addWidget(self.create_separator())
         marker_label = QLabel("Meine Fundorte")
         marker_label.setObjectName("titleLabel")
@@ -255,20 +249,99 @@ class TreasureHunterApp(QMainWindow):
 
     def init_menu(self):
         menu_bar = self.menuBar()
+        menu_bar.setStyleSheet("""
+            QMenuBar {
+                background-color: #2c3e50;
+                color: white;
+                border-bottom: 1px solid #34495e;
+            }
+            QMenuBar::item:selected {
+                background-color: #34495e;
+            }
+            QMenu {
+                background-color: #2c3e50;
+                color: white;
+                border: 1px solid #34495e;
+            }
+            QMenu::item:selected {
+                background-color: #34495e;
+            }
+        """)
         self.poi_menu = menu_bar.addMenu("&POI Layers")
-        border_menu = menu_bar.addMenu("&Administrative Borders")
-        levels = {"Countries": 4, "Regions / States": 6, "Counties": 8}
-        for name, level in levels.items():
-            action = QAction(name, self, checkable=True)
-            action.setData(level)
-            action.toggled.connect(self.handle_border_toggle)
-            border_menu.addAction(action)
+        self.poi_menu.aboutToShow.connect(self.handle_menu_show)
+        self.poi_menu.aboutToHide.connect(self.handle_menu_hide)
 
+        border_menu = menu_bar.addMenu("&Administrative Borders")
+        border_menu.aboutToShow.connect(self.handle_menu_show)
+        border_menu.aboutToHide.connect(self.handle_menu_hide)
+
+        # Countries
+        countries_action = QAction("Countries", self, checkable=True)
+        countries_action.setData(4)
+        countries_action.toggled.connect(self.handle_border_toggle)
+        border_menu.addAction(countries_action)
+        
+        # Regions
+        self.regions_menu = border_menu.addMenu("Regions")
+        self.populate_regions_menu()
+        
         debug_menu = menu_bar.addMenu("&Debug")
         dev_tools_action = QAction("Open Remote Debugger", self)
         dev_tools_action.triggered.connect(self.open_remote_debugger)
         debug_menu.addAction(dev_tools_action)
 
+    def handle_menu_show(self):
+        self.sender().menuAction().setProperty("mouse-over", True)
+
+    def handle_menu_hide(self):
+        self.sender().menuAction().setProperty("mouse-over", False)
+
+
+    def populate_regions_menu(self):
+        try:
+            # Add "Show All" option first
+            all_action = QAction("Show All", self, checkable=True)
+            all_action.setData("ALL")
+            all_action.toggled.connect(self.toggle_all_regions_for_country)
+            self.regions_menu.addAction(all_action)
+            self.regions_menu.addSeparator()
+
+            country_names = sorted(border_fetcher.get_country_list())
+            for name in country_names:
+                # A single, checkable action for each country to show all its regions
+                country_action = QAction(name, self, checkable=True)
+                country_action.setData(name)
+                country_action.toggled.connect(self.toggle_all_regions_for_country)
+                self.regions_menu.addAction(country_action)
+        except Exception as e:
+            self.add_log(f"Failed to populate regions menu: {e}")
+            error_action = QAction("Error loading countries", self)
+            error_action.setEnabled(False)
+            self.regions_menu.addAction(error_action)
+            
+    def toggle_all_regions_for_country(self, is_checked):
+        action = self.sender()
+        if not action: return
+        
+        country_name = action.data()
+        layer_id = f"regions_{country_name}".replace(" ", "_")
+
+        if is_checked:
+            self.add_log(f"Fetching regions for {country_name}...")
+            self.border_fetcher_thread = BorderFetcherThread(6, country_name)
+            self.border_fetcher_thread.data_ready.connect(
+                lambda level, name, data, lid=layer_id: self.on_country_regions_data_ready(lid, data)
+            )
+            self.border_fetcher_thread.error.connect(lambda msg: self.add_log(f"Failed to fetch regions: {msg}"))
+            self.border_fetcher_thread.start()
+        else:
+            self.map_widget.run_js(f"window.removeBorderLayer('{layer_id}');")
+
+    def on_country_regions_data_ready(self, layer_id, data):
+        self.add_log(f"Region data for {layer_id} has been successfully loaded.")
+        feature_collection_json = json.dumps(data)
+        self.map_widget.run_js(f"window.addCountryRegionsLayer('{layer_id}', {feature_collection_json});")
+        
     def open_remote_debugger(self):
         webbrowser.open("http://localhost:8888")
 
@@ -293,7 +366,7 @@ class TreasureHunterApp(QMainWindow):
     def on_map_ready(self):
         self.add_log("[JS] Karte ist bereit.")
         self.draw_all_markers_on_map()
-        self.toggle_terrain_layer(self.terrain_checkbox.checkState().value)
+        self.set_terrain_opacity(self.opacity_slider.value())
         self.map_widget.run_js(f"window.setInitialPoiData({json.dumps(self.poi_data)});")
         for key in self.poi_data:
             self.map_widget.toggle_poi_layer(key, False) 
@@ -313,35 +386,19 @@ class TreasureHunterApp(QMainWindow):
         action = self.sender()
         if not action: return
         level = action.data()
-
+        
         if is_checked:
-            self.add_log(f"Getting map state to fetch borders for level {level}...")
-            self.map_widget.run_js("window.getMapState();", 
-                lambda map_state: self.start_border_fetch(level, map_state, action))
+            self.start_border_fetch(level, action)
         else:
             self.map_widget.run_js(f"window.toggleBorderLayer({level}, false);")
 
-    def start_border_fetch(self, level, map_state, action_to_update):
-        if not map_state or 'zoom' not in map_state or 'bbox' not in map_state:
-            self.add_log("Error: Could not get map state (zoom/bounds).")
-            action_to_update.setChecked(False)
-            return
-
-        zoom = map_state['zoom']
-        bbox = map_state['bbox']
-        
-        min_zoom_levels = { 8: 9, 6: 6 }
-        
-        if level in min_zoom_levels and zoom < min_zoom_levels[level]:
-            QMessageBox.information(self, "Zoom Level Too Low", 
-                f"Please zoom in further to display this layer.\n\nCurrent Zoom: {zoom}\nRequired Zoom: {min_zoom_levels[level]}")
-            self.add_log(f"Zoom level {zoom} is too low for admin level {level}. Aborting fetch.")
-            action_to_update.setChecked(False)
-            return
-
-        self.add_log(f"Fetching borders for level {level} within {bbox}...")
-        self.border_fetcher_thread = BorderFetcherThread(level, bbox)
-        self.border_fetcher_thread.data_ready.connect(self.on_border_data_ready)
+    def start_border_fetch(self, level, action_to_update):
+        self.add_log(f"Fetching global borders for level {level}...")
+        # Pass None for country_name when fetching all countries
+        self.border_fetcher_thread = BorderFetcherThread(level)
+        self.border_fetcher_thread.data_ready.connect(
+            lambda lvl, name, data: self.on_border_data_ready(lvl, data)
+        )
         self.border_fetcher_thread.error.connect(lambda msg: self.on_border_fetch_error(msg, action_to_update))
         self.border_fetcher_thread.start()
 
@@ -354,14 +411,15 @@ class TreasureHunterApp(QMainWindow):
     def on_border_fetch_error(self, error_message, action_to_update):
         self.add_log(f"Error fetching border data: {error_message}")
         QMessageBox.warning(self, "Network Error", f"Could not fetch border data: {error_message}")
-        action_to_update.setChecked(False)
+        if action_to_update:
+            action_to_update.setChecked(False)
 
     def toggle_terrain_layer(self, state):
         is_visible = state == Qt.CheckState.Checked.value
         self.map_widget.run_js(f"window.setTerrainAutoMode({str(is_visible).lower()});")
 
     def set_terrain_opacity(self, value):
-        self.map_widget.run_js(f"window.setTerrainOpacity({value / 100});")
+        self.map_widget.run_js(f"window.setTerrainOpacity({value / 100.0});")
 
     def set_terrain_enhancement(self, value):
         self.map_widget.run_js(f"window.setTerrainEnhancement({value});")

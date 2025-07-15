@@ -11,9 +11,6 @@
             
             <script>
             
-        /*
-         (c) 2012, Michael Evans, Thomas J Bradley, GEOIQ, David vt., KlokanTech.com
-        */
         L.Util.ajax=function(t,e){"use strict";if(void 0===window.XMLHttpRequest)window.XMLHttpRequest=function(){try{return new ActiveXObject("Microsoft.XMLHTTP.6.0")}catch(t){try{return new ActiveXObject("Microsoft.XMLHTTP.3.0")}catch(t){throw new Error("XMLHttpRequest is not supported")}}};var i=new window.XMLHttpRequest;i.open("GET",t),i.onreadystatechange=function(){4===i.readyState&&200===i.status&&(window.JSON?e(JSON.parse(i.responseText)):e(eval("("+i.responseText+")")))},i.send(null)};L.UtfGrid=(L.Layer||L.Class).extend({options:{subdomains:"abc",minZoom:0,maxZoom:18,tileSize:256,resolution:4,useJsonP:!0,pointerCursor:!0},_mouseOn:null,initialize:function(t,e){L.Util.setOptions(this,e),this._url=t,this._cache={},this.options.useJsonP&&(this._windowKey="_l_utfgrid_"+L.stamp(this),window[this._windowKey]={})},onAdd:function(t){this._map=t,this._container=this._map._container,this._update();var e=this._map.getZoom();this.options.minZoom<e&&this.options.maxZoom>e&&this._addEvents()},onRemove:function(){this._removeEvents(),this._mouseOn=null,this.options.useJsonP&&delete window[this._windowKey]},createTile:function(t){return this._loadTile(t),document.createElement("div")},_loadTile:function(t){var e=this.getTileUrl(t),i=this._tileCoordsToKey(t);this._cache[i]||(this.options.useJsonP?this._loadJsonP(e,i):L.Util.ajax(e,L.bind(function(t){this._cache[i]=t,this._update()},this)))},_loadJsonP:function(t,e){var i=document.getElementsByTagName("head")[0],s=document.createElement("script");return window[this._windowKey][e]=L.bind(function(t){this._cache[e]=t,delete window[this._windowKey][e],i.removeChild(s),this._update()},this),s.type="text/javascript",s.src=t,i.appendChild(s),s},_addEvents:function(){L.DomEvent.on(this._container,"mousemove",this._onMouseMove,this),L.DomEvent.on(this._map,"click",this._onClick,this),L.DomEvent.on(this._map,"zoomend",this._onZoom,this),L.DomEvent.on(this._map,"moveend",this._onMove,this)},_removeEvents:function(){L.DomEvent.off(this._container,"mousemove",this._onMouseMove,this),L.DomEvent.off(this._map,"click",this._onClick,this),L.DomEvent.off(this._map,"zoomend",this._onZoom,this),L.DomEvent.off(this._map,"moveend",this._onMove,this)},_onZoom:function(){this._cache={},this._update()},_onMove:function(){this._update()},_onMouseMove:function(t){var e=this._objectForEvent(t);e&&e.id!==(this._mouseOn&&this._mouseOn.id)?(this._fire("mouseover",this._mouseOn=e),this.options.pointerCursor&&(this._container.style.cursor="pointer")):e||!this._mouseOn||(this._fire("mouseout",this._mouseOn),this._mouseOn=null,this.options.pointerCursor&&(this._container.style.cursor=""))},_onClick:function(t){var e=this._objectForEvent(t);e&&this._fire("click",e)},_objectForEvent:function(t){var e=this._map.project(t.latlng),tile=this._getTile(e);if(!tile)return null;var i=Math.floor((e.x-tile.x)/this.options.resolution),s=Math.floor((e.y-tile.y)/this.options.resolution),o=tile.grid.length-1;if(i<0||i>o||s<0||s>o)return null;var n=this._utfDecode(tile.grid[s].charCodeAt(i)),r=tile.data[n];return r?L.Util.extend({latlng:t.latlng,id:n},r):null},_getTile:function(t){var e=this._getTileCoords(t),i=this._tileCoordsToKey(e),s=this._cache[i];return s?((s.x=this._getTilePoint(e).x),(s.y=this._getTilePoint(e).y)):this._loadTile(e),s},_getTileCoords:function(t){return{x:Math.floor(t.x/this.options.tileSize),y:Math.floor(t.y/this.options.tileSize),z:this._map.getZoom()}},_getTilePoint:function(t){return{x:t.x*this.options.tileSize,y:t.y*this.options.tileSize}},_tileCoordsToKey:function(t){return t.z+"/"+t.x+"/"+t.y},_update:function(){var t=this._map.getPixelBounds(),e=this._map.getZoom();if(!(e>this.options.maxZoom||e<this.options.minZoom)){var i=this._getTileCoords(t.min),s=this._getTileCoords(t.max);for(var o=i.x;o<=s.x;o++)for(var n=i.y;n<=s.y;n++)this._loadTile({x:o,y:n,z:e})}},_utfDecode:function(t){return t>=93&&t--,t>=35&&t--,t-32},getTileUrl:function(t){var e=L.Util.template(this._url,L.Util.extend({s:L.TileLayer.prototype._getSubdomain.call(this,t),z:t.z,x:t.x,y:t.y},this.options));return this.options.useJsonP?e+"?callback="+this._windowKey+"."+this._tileCoordsToKey(t):e},addLayer:function(){},removeLayer:function(){},_fire:L.Evented.prototype.fire});L.utfGrid=function(t,e){return new L.UtfGrid(t,e)};
         
             </script>
@@ -55,7 +52,6 @@
             });
 
             function initializeMap() {
-                // ### FIX: Override Leaflet's AJAX function to use our Python bridge ###
                 var requestCallbacks = {};
                 L.Util.ajax = function(url, callback) {
                     const requestId = 'req_' + Math.random().toString(36).substr(2, 9);
@@ -84,15 +80,15 @@
                 map = L.map('map', { crs: L.CRS.EPSG3857, center: [49.5, 12.5], zoom: 6 });
                 
                 baseLayers['OpenStreetMap'] = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
+                    attribution: '© OpenStreetMap contributors', maxZoom: 19
                 }).addTo(map);
 
                 baseLayers['Satellit'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                    attribution: 'Tiles &copy; Esri', maxZoom: 19
+                    attribution: 'Tiles © Esri', maxZoom: 19
                 });
 
                 baseLayers['Topographisch'] = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-                    attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap (CC-BY-SA)', maxZoom: 17
+                    attribution: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap (CC-BY-SA)', maxZoom: 17
                 });
                 
                 baseLayers['Roman Empire'] = L.tileLayer('https://dh.gu.se/tiles/imperium/{z}/{x}/{y}.png', {
@@ -146,11 +142,6 @@
                         if (!terrainLayers[layerKey]) {
                             const layerInfo = country.layers[layerKey];
                             let layerOptions = { ...layerInfo.options, ...paneOption };
-                            let crs_string = layerOptions.crs || layerOptions.srs;
-                            if (crs_string && typeof crs_string === 'string' && crs_string === 'EPSG:3857') {
-                                layerOptions.crs = L.CRS.EPSG3857;
-                            }
-
                             if (layerInfo.url.includes('{z}')) {
                                 terrainLayers[layerKey] = L.tileLayer(layerInfo.url, layerOptions);
                             } else {
@@ -162,9 +153,7 @@
                 }
                 
                 var borderPaneOption = { pane: 'borderPane' };
-                borderLayers[4] = L.geoJSON(null, { ...{ style: { color: '#006400', weight: 3, fillOpacity: 0.05, interactive: false } }, ...borderPaneOption });
-                borderLayers[6] = L.geoJSON(null, { ...{ style: { color: '#0000CD', weight: 2, fillOpacity: 0.05, interactive: false } }, ...borderPaneOption });
-                borderLayers[8] = L.geoJSON(null, { ...{ style: { color: '#FF4500', weight: 1, fillOpacity: 0.05, interactive: false } }, ...borderPaneOption });
+                borderLayers[4] = L.geoJSON(null, { ...{ style: { color: '#0000FF', weight: 2, fillOpacity: 0.05, interactive: false } }, ...borderPaneOption });
 
                 map.on('contextmenu', e => window.bridge.onMapRightClicked(e.latlng.lat, e.latlng.lng));
                 map.on('moveend zoomend', updateAutoTerrain);
@@ -224,12 +213,30 @@
             };
 
             window.toggleBorderLayer = function(level, show) {
-                if (borderLayers[level]) {
-                    if (show && !map.hasLayer(borderLayers[level])) {
-                        map.addLayer(borderLayers[level]);
-                    } else if (!show && map.hasLayer(borderLayers[level])) {
-                        map.removeLayer(borderLayers[level]);
+                const layer = borderLayers[level];
+                if (layer) {
+                    if (show && !map.hasLayer(layer)) {
+                        map.addLayer(layer);
+                    } else if (!show && map.hasLayer(layer)) {
+                        map.removeLayer(layer);
                     }
+                }
+            };
+
+            window.addCountryRegionsLayer = function(layerId, geoJsonData) {
+                if (borderLayers[layerId]) {
+                    map.removeLayer(borderLayers[layerId]);
+                }
+                borderLayers[layerId] = L.geoJSON(geoJsonData, {
+                    style: { color: '#008000', weight: 2, fillOpacity: 0.05, interactive: false },
+                    pane: 'borderPane'
+                }).addTo(map);
+            };
+
+            window.removeBorderLayer = function(layerId) {
+                if (borderLayers[layerId]) {
+                    map.removeLayer(borderLayers[layerId]);
+                    delete borderLayers[layerId];
                 }
             };
 
@@ -272,7 +279,6 @@
                     }
                     
                     data.forEach(poi => {
-                        // ### FIX: Added check to prevent error on invalid POI data ###
                         if (poi && typeof poi.lat === 'number' && typeof poi.lon === 'number') {
                             let popupContent = `<div class="poi-popup-content"><b>${poi.name}</b>`;
                             if (poi.zusammenfassung) popupContent += `<br><p>${poi.zusammenfassung.substring(0, 200)}...</p>`;
@@ -292,7 +298,6 @@
             };
             
             window.addPermanentMarker = function(data) {
-                // ### FIX: Added check to prevent error on invalid marker data ###
                 if(data && typeof data.lat === 'number' && typeof data.lon === 'number') {
                     const marker = L.marker([data.lat, data.lon], {icon: icons[data.icon] || icons['punkt']}).addTo(map).bindPopup(`<b>${data.comment}</b>`);
                     permanentMarkers[data.id] = marker;
