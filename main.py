@@ -27,6 +27,7 @@ from geopy.exc import GeocoderTimedOut, GeocoderUnavailable
 # Local Imports
 from map_widget import MapWidget
 from assets import border_fetcher
+from assets import debug_tools
 from assets.countries.europe import germany as germany_assets
 from assets.countries.europe import austria as austria_assets
 from assets.countries.europe import switzerland as switzerland_assets
@@ -654,6 +655,7 @@ class TreasureHunterApp(QMainWindow):
 def main():
     # The local server is not needed with the Python proxy approach
     app = QApplication(sys.argv)
+    
     
     # Lade das Stylesheet
     qss_file = QFile("dark_theme.qss")
