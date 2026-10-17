@@ -37,7 +37,8 @@
             var allPoiDataFromPython = {};
             var borderLayers = {};
             
-            const terrainData = {"germany": {"layers": {"de_gelaende": {"url": "https://sgx.geodatenzentrum.de/wms_basemapde_schummerung", "options": {"layers": "de_basemapde_web_raster_hillshade", "format": "image/png", "transparent": true, "attribution": "Gel\u00e4nde &copy; GeoBasis-DE / BKG"}}, "by_lidar_schraeglicht": {"url": "https://geoservices.bayern.de/od/wms/dgm/v1/relief", "options": {"layers": "by_relief_schraeglicht", "format": "image/png", "transparent": true, "attribution": "Gel\u00e4nderelief &copy; LDBV", "version": "1.3.0", "maxZoom": 20}}, "by_lidar_kombiniert": {"url": "https://geoservices.bayern.de/od/wms/dgm/v1/relief", "options": {"layers": "by_relief_kombiniert", "format": "image/png", "transparent": true, "attribution": "Gel\u00e4nderelief &copy; LDBV", "version": "1.3.0", "maxZoom": 20}}}, "bounds": {"bavaria": [[47.2, 8.9], [50.6, 13.9]], "germany": [[47.2, 5.8], [55.1, 15.1]]}, "logic": {"bavaria": {"15": "by_lidar_kombiniert", "14": "by_lidar_schraeglicht", "0": "de_gelaende"}, "germany": {"0": "de_gelaende"}}}, "austria": {"layers": {"at_dtm": {"url": "https://maps.wien.gv.at/basemap/bmapgelaende/grau/google3857/{z}/{y}/{x}.jpeg", "options": {"attribution": "Gel\u00e4ndedarstellung aus Digitalem Gel\u00e4ndemodell (DGM) | Datenquelle: basemap.at"}}}, "bounds": {"austria": [[46.3, 9.5], [49.1, 17.2]]}, "logic": {"austria": {"0": "at_dtm"}}}, "switzerland": {"layers": {"ch_dtm": {"url": "https://wms.geo.admin.ch/", "options": {"layers": "ch.swisstopo.swissalti3d-reliefschattierung", "format": "image/png", "transparent": true, "attribution": "Relief \u00a9 swisstopo", "version": "1.3.0"}}}, "bounds": {"switzerland": [[45.8, 5.9], [47.8, 10.5]]}, "logic": {"switzerland": {"0": "ch_dtm"}}}, "italy": {"layers": {"it_dtm": {"url": "https://ows.terrestris.de/osm/service?", "options": {"layers": "SRTM30-Hillshade", "format": "image/png", "transparent": true, "attribution": "SRTM30-Hillshade &copy; terrestris", "version": "1.1.1", "srs": "EPSG:3857"}}}, "bounds": {"italy": [[35.5, 6.6], [47.1, 18.5]]}, "logic": {"italy": {"0": "it_dtm"}}}};
+            const terrainData = {"germany": {"layers": {"de_gelaende": {"url": "https://sgx.geodatenzentrum.de/wms_basemapde_schummerung", "options": {"layers": "de_basemapde_web_raster_hillshade", "format": "image/png", "transparent": true, "attribution": "Gel\u00e4nde &copy; GeoBasis-DE / BKG"}}, "by_lidar_schraeglicht": {"url": "https://geoservices.bayern.de/od/wms/dgm/v1/relief", "options": {"layers": "by_relief_schraeglicht", "format": "image/png", "transparent": true, "attribution": "Gel\u00e4nderelief &copy; LDBV", "version": "1.3.0", "maxZoom": 20}}, "by_lidar_kombiniert": {"url": "https://geoservices.bayern.de/od/wms/dgm/v1/relief", "options": {"layers": "by_relief_kombiniert", "format": "image/png", "transparent": true, "attribution": "Gel\u00e4nderelief &copy; LDBV", "version": "1.3.0", "maxZoom": 20}}}, "bounds": {"bavaria": [[47.2, 8.9], [50.6, 13.9]], "germany": [[47.2, 5.8], [55.1, 15.1]]}, "logic": {"bavaria": {"15": "by_lidar_kombiniert", "14": "by_lidar_schraeglicht", "0": "de_gelaende"}, "germany": {"0": "de_gelaende"}}}, "austria": {"layers": {"at_dtm": {"url": "https://maps.wien.gv.at/basemap/bmapgelaende/grau/google3857/{z}/{y}/{x}.jpeg", "options": {"attribution": "Gel\u00e4ndedarstellung aus Digitalem Gel\u00e4ndemodell (DGM) | Datenquelle: basemap.at"}}}, "bounds": {"austria": [[46.3, 9.5], [49.1, 17.2]]}, "logic": {"austria": {"0": "at_dtm"}}}, "switzerland": {"layers": {"ch_dtm": {"url": "https://wms.geo.admin.ch/", "options": {"layers": "ch.swisstopo.swissalti3d-reliefschattierung", "format": "image/png", "transparent": true, "attribution": "Relief \u00a9 swisstopo", "version": "1.3.0"}}}, "bounds": {"switzerland": [[45.8, 5.9], [47.8, 10.5]]}, "logic": {"switzerland": {"0": "ch_dtm"}}}, "italy": {"layers": {"it_dtm": {"url": "https://tinitaly.pi.ingv.it/TINItaly_1_1/wms?", "options": {"layers": "tinitaly_hshd", "format": "image/png", "transparent": true, "version": "1.3.0", "maxZoom": 20, "maxNativeZoom": 14, "bounds": [[35.5, 6.6], [47.1, 18.5]], "attribution": "TINITALY 10 m &copy; INGV (CC BY 4.0)"}}, "er_dtm5m": {"type": "arcgis_image", "url": "https://servizigis.regione.emilia-romagna.it/arcgis/rest/services/public/Dtm5x5/ImageServer", "options": {"renderingRule": {"rasterFunction": "Hillshade", "rasterFunctionArguments": {"Azimuth": 315, "Altitude": 45, "ZFactor": 1}}, "imageFormat": "png", "bounds": [[43.7, 9.1], [45.2, 12.85]], "maxZoom": 20, "maxNativeZoom": 15, "attribution": "DTM 5 m &copy; Regione Emilia-Romagna (CC BY 4.0)"}}, "tos_mase_2m": {"url": "http://wms.pcn.minambiente.it/ogc?map=/ms_ogc/WMS_v1.3/servizi-LiDAR/LIDAR_TOSCANA.map", "options": {"layers": "EL.LIDAR.TOSCANA.2x2.DTM", "format": "image/png", "transparent": true, "version": "1.1.1", "maxZoom": 20, "maxNativeZoom": 16, "bounds": [[42.2, 9.6], [44.5, 12.45]], "attribution": "LiDAR DTM 2 m &copy; MASE - Geoportale Nazionale"}}, "tos_mase_1m": {"url": "http://wms.pcn.minambiente.it/ogc?map=/ms_ogc/WMS_v1.3/servizi-LiDAR/LIDAR_TOSCANA.map", "options": {"layers": "EL.LIDAR.TOSCANA.1x1.DTM", "format": "image/png", "transparent": true, "version": "1.1.1", "maxZoom": 20, "maxNativeZoom": 17, "bounds": [[42.2, 9.6], [44.5, 12.45]], "attribution": "LiDAR DTM 1 m &copy; MASE - Geoportale Nazionale (CC BY 4.0)"}}, "tos_dsm_1m": {"type": "wms_crop", "url": "https://www502.regione.toscana.it/wmsraster/com.rt.wms.RTmap/wms?map=wmsmorfologia", "options": {"layers": "rt_morfologia.iddsm2021.1m.hs.rt", "cropLeft": 32, "maxZoom": 20, "maxNativeZoom": 17, "bounds": [[42.2, 9.6], [44.5, 12.45]], "attribution": "DSM 1 m 2021 &copy; Regione Toscana"}}, "tos_lidar_1m": {"type": "wms_crop", "url": "https://www502.regione.toscana.it/wmsraster/com.rt.wms.RTmap/wms?map=wmsmorfologia", "options": {"layers": "rt_morfologia.iddtm.1m.hs.irs", "cropLeft": 32, "maxZoom": 20, "maxNativeZoom": 17, "bounds": [[42.2, 9.6], [44.5, 12.45]], "attribution": "LiDAR DTM 1 m &copy; Regione Toscana / IRS (CC BY-NC-SA)"}}, "er_lidar_05m": {"type": "arcgis_image", "url": "https://servizigis.regione.emilia-romagna.it/arcgis/rest/services/public/DtmRER2023_24/ImageServer", "options": {"renderingRule": {"rasterFunction": "Hillshade", "rasterFunctionArguments": {"HillshadeType": 1, "ZFactor": 1}}, "imageFormat": "png", "bounds": [[43.7, 9.1], [45.2, 12.85]], "maxZoom": 20, "maxNativeZoom": 18, "attribution": "LiDAR DTM 0,5 m RER 2023-24 &copy; Regione Emilia-Romagna (CC BY 4.0)"}}}, "bounds": {"lunigiana": [[44.05, 9.65], [44.55, 10.25]], "elba": [[42.7, 10.05], [42.9, 10.5]], "emilia_romagna": [[43.7, 9.1], [45.2, 12.85]], "tuscany": [[42.2, 9.6], [44.5, 12.45]], "italy": [[35.5, 6.6], [47.1, 18.5]]}, "logic": {"lunigiana": {"15": ["tos_lidar_1m", "tos_mase_1m", "tos_dsm_1m", "it_dtm"], "13": ["tos_lidar_1m", "tos_mase_1m", "it_dtm"], "11": ["tos_mase_1m", "it_dtm"], "0": "it_dtm"}, "elba": {"17": ["tos_dsm_1m"], "13": ["tos_mase_2m", "tos_dsm_1m"], "0": "it_dtm"}, "emilia_romagna": {"14": ["er_lidar_05m", "tos_lidar_1m", "it_dtm"], "13": ["er_dtm5m", "tos_lidar_1m", "it_dtm"], "10": ["er_dtm5m", "it_dtm"], "0": "it_dtm"}, "tuscany": {"13": ["tos_lidar_1m", "it_dtm"], "0": "it_dtm"}, "italy": {"0": "it_dtm"}}}};
+            const tileProxy = {"host": "127.0.0.1", "ports": [57243, 57244, 57245, 57246]};
             const icons_data = {"start": {"iconUrl": "assets/vectors/start.svg", "iconSize": [32, 32]}, "ziel": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNEQzE0M0MiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj4KICA8Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCI+PC9jaXJjbGU+CiAgPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iNiI+PC9jaXJjbGU+CiAgPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMiI+PC9jaXJjbGU+Cjwvc3ZnPg==", "iconSize": [32, 32]}, "viereckschanze": {"iconUrl": "assets/vectors/viereckschanze.svg", "iconSize": [32, 32]}, "kastell": {"iconUrl": "assets/vectors/castle.svg", "iconSize": [32, 32]}, "siedlung": {"iconUrl": "assets/vectors/settlement.svg", "iconSize": [32, 32]}, "coin": {"iconUrl": "assets/vectors/coin.svg", "iconSize": [32, 32]}, "treasure": {"iconUrl": "assets/vectors/treasure.svg", "iconSize": [32, 32]}, "modern": {"iconUrl": "assets/vectors/eagle.svg", "iconSize": [32, 32]}, "punkt": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM2YzcyYjAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI4Ij48L2NpcmNsZT48L3N2Zz4=", "iconSize": [32, 32]}, "m\u00fcnze": {"iconUrl": "assets/vectors/coin.svg", "iconSize": [32, 32]}, "burg": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjIgMjB2LTJoLTJ2Mmgyem0tMi00aDJ2LTJoLTJ2MnptLTQtMi4yVjIwaDR2LTQuMkwxMiAxMi44bC04IDQuNXYtNC40bDEwLjYtNi4ybC0yLjYtMS41TDEyIDJsLTcgNHYxMGMwIDIgMCAyIDIgMmgyMGMwIDIgMCAyIDIgMiAyem0tMTAgMGgybTAtNmgwbS00IDhoNGm0LTZoMGm0IDhoNGm0LTZoMCI+PC9wYXRoPjwvc3ZnPg==", "iconSize": [32, 32]}, "bunker": {"iconUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy52My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgMjJzOC00IDgtMTBWNWwtOC0zLTggM3Y3YzAgNiA4IDEwIDggMTB6Ij48L3BhdGg+PC9zdmc+", "iconSize": [32, 32]}, "schanze": {"iconUrl": "assets/vectors/viereckschanze.svg", "iconSize": [32, 32]}};
             const cultureColors = {"kelten": "#000000", "r\u00f6mer": "#007AcC", "mittelalter": "#28a745", "weltkriege": "#dc2626", "modern": "#000000"};
             const icons = {};
@@ -142,12 +143,27 @@
                         if (!terrainLayers[layerKey]) {
                             const layerInfo = country.layers[layerKey];
                             let layerOptions = { ...layerInfo.options, ...paneOption };
-                            if (layerInfo.url.includes('{z}')) {
+                            if (tileProxy && tileProxy.ports && tileProxy.ports.length) {
+                                // Local cache proxy builds the upstream request itself (see tile_cache.py).
+                                // The ports act like tile-server subdomains to get around the browser's
+                                // per-host connection limit.
+                                const tileTemplate = 'http://' + tileProxy.host + ':{s}/tile/' + layerKey + '/{z}/{x}/{y}.png';
+                                const proxyOptions = { ...layerOptions, subdomains: tileProxy.ports.map(String) };
+                                if (layerInfo.type === 'wms_crop') {
+                                    terrainLayers[layerKey] = L.gridLayer.wmsCropped(tileTemplate, { ...proxyOptions, tileTemplate: true });
+                                } else {
+                                    terrainLayers[layerKey] = L.tileLayer(tileTemplate, proxyOptions);
+                                }
+                            } else if (layerInfo.type === 'arcgis_image') {
+                                terrainLayers[layerKey] = L.tileLayer.arcgisImage(layerInfo.url, layerOptions);
+                            } else if (layerInfo.type === 'wms_crop') {
+                                terrainLayers[layerKey] = L.gridLayer.wmsCropped(layerInfo.url, layerOptions);
+                            } else if (layerInfo.url.includes('{z}')) {
                                 terrainLayers[layerKey] = L.tileLayer(layerInfo.url, layerOptions);
                             } else {
                                 terrainLayers[layerKey] = L.tileLayer.wms(layerInfo.url, layerOptions);
                             }
-                            terrainLayers[layerKey].setOpacity(0).addTo(map);
+                            // Added to the map on demand by updateAutoTerrain().
                         }
                     }
                 }
@@ -162,10 +178,126 @@
             }
             
             
+            // Tile layer for ArcGIS Image Services (exportImage endpoint). Each Leaflet tile is
+            // requested as a Web-Mercator bbox, optionally with a server-side renderingRule
+            // (e.g. Hillshade), so DTM services can be shown as relief without local processing.
+            L.TileLayer.ArcGISImage = L.TileLayer.extend({
+                initialize: function(serviceUrl, options) {
+                    options = options || {};
+                    this._serviceUrl = serviceUrl.endsWith('/') ? serviceUrl.slice(0, -1) : serviceUrl;
+                    this._renderingRule = options.renderingRule ? JSON.stringify(options.renderingRule) : null;
+                    this._imageFormat = options.imageFormat || 'png';
+                    L.TileLayer.prototype.initialize.call(this, serviceUrl, options);
+                },
+                getTileUrl: function(coords) {
+                    const tileSize = this.getTileSize();
+                    const nwPoint = coords.scaleBy(tileSize);
+                    const sePoint = nwPoint.add(tileSize);
+                    const nw = L.CRS.EPSG3857.project(this._map.unproject(nwPoint, coords.z));
+                    const se = L.CRS.EPSG3857.project(this._map.unproject(sePoint, coords.z));
+                    const params = {
+                        f: 'image',
+                        bbox: [nw.x, se.y, se.x, nw.y].join(','),
+                        bboxSR: 3857,
+                        imageSR: 3857,
+                        size: tileSize.x + ',' + tileSize.y,
+                        format: this._imageFormat,
+                        transparent: true
+                    };
+                    if (this._renderingRule) params.renderingRule = this._renderingRule;
+                    return this._serviceUrl + '/exportImage' + L.Util.getParamString(params);
+                }
+            });
+            L.tileLayer.arcgisImage = (serviceUrl, options) => new L.TileLayer.ArcGISImage(serviceUrl, options);
+
+            // WMS layer that requests each tile `cropLeft` pixels wider than needed and draws it
+            // shifted left onto a canvas, cutting off a watermark strip some servers paint along
+            // the left edge of every image (e.g. Regione Toscana's Geoscopio WMS).
+            L.GridLayer.WMSCropped = L.GridLayer.extend({
+                initialize: function(url, options) {
+                    options = options || {};
+                    this._wmsUrl = url;
+                    this._cropLeft = options.cropLeft || 0;
+                    this._wmsParams = {
+                        service: 'WMS', request: 'GetMap', version: options.version || '1.1.1',
+                        layers: options.layers || '', styles: options.styles || '',
+                        format: options.format || 'image/png', transparent: options.transparent !== false,
+                        srs: 'EPSG:3857'
+                    };
+                    L.GridLayer.prototype.initialize.call(this, options);
+                },
+                createTile: function(coords, done) {
+                    const tile = document.createElement('canvas');
+                    const size = this.getTileSize();
+                    tile.width = size.x; tile.height = size.y;
+                    const crop = this._cropLeft;
+                    const nwPoint = coords.scaleBy(size).subtract([crop, 0]);
+                    const sePoint = coords.scaleBy(size).add(size);
+                    const nw = L.CRS.EPSG3857.project(this._map.unproject(nwPoint, coords.z));
+                    const se = L.CRS.EPSG3857.project(this._map.unproject(sePoint, coords.z));
+                    const params = { ...this._wmsParams, width: size.x + crop, height: size.y, bbox: [nw.x, se.y, se.x, nw.y].join(',') };
+                    const img = new Image();
+                    img.onload = () => { tile.getContext('2d').drawImage(img, -crop, 0); done(null, tile); };
+                    img.onerror = () => done(new Error('tile load failed'), tile);
+                    if (this.options.tileTemplate) {
+                        const subdomains = this.options.subdomains || [''];
+                        const s = subdomains[Math.abs(coords.x + coords.y) % subdomains.length];
+                        img.src = L.Util.template(this._wmsUrl, { s: s, z: coords.z, x: coords.x, y: coords.y });
+                    } else {
+                        img.src = this._wmsUrl + L.Util.getParamString(params, this._wmsUrl);
+                    }
+                    return tile;
+                }
+            });
+            L.gridLayer.wmsCropped = (url, options) => new L.GridLayer.WMSCropped(url, options);
+
+            // Regions are checked in this order; the first whose bounds contain the map centre wins.
+            // Regions defined in the country modules but missing here are checked afterwards.
+            const terrainRegionPriority = [
+                ['germany', 'bavaria'],
+                ['austria', 'austria'],
+                ['switzerland', 'switzerland'],
+                ['italy', 'elba'],
+                ['italy', 'lunigiana'],
+                ['italy', 'emilia_romagna'],
+                ['italy', 'tuscany'],
+                ['italy', 'italy'],
+                ['germany', 'germany']
+            ];
+
+            function pickLayerForZoom(logic, zoom) {
+                if (!logic) return null;
+                const thresholds = Object.keys(logic).map(Number).filter(n => !isNaN(n)).sort((a, b) => b - a);
+                for (const t of thresholds) {
+                    if (zoom >= t) return logic[String(t)];
+                }
+                return null;
+            }
+
+            function resolveTerrainLayerKey(center, zoom) {
+                const candidates = terrainRegionPriority.slice();
+                for (const countryName in terrainData) {
+                    for (const regionName in (terrainData[countryName].bounds || {})) {
+                        if (!candidates.some(c => c[0] === countryName && c[1] === regionName)) {
+                            candidates.push([countryName, regionName]);
+                        }
+                    }
+                }
+                for (const [countryName, regionName] of candidates) {
+                    const country = terrainData[countryName];
+                    if (!country || !country.bounds || !country.bounds[regionName]) continue;
+                    if (!L.latLngBounds(country.bounds[regionName]).contains(center)) continue;
+                    const picked = pickLayerForZoom(country.logic && country.logic[regionName], zoom);
+                    const keys = (Array.isArray(picked) ? picked : [picked]).filter(k => k && terrainLayers[k]);
+                    if (keys.length) return keys;
+                }
+                return [];
+            }
+
             function updateAutoTerrain() {
                 if (!isTerrainAutoMode) {
                     for (const key in terrainLayers) {
-                        if (terrainLayers[key].setOpacity) terrainLayers[key].setOpacity(0);
+                        if (map.hasLayer(terrainLayers[key])) map.removeLayer(terrainLayers[key]);
                     }
                     map.getContainer().style.filter = 'none';
                     return;
@@ -173,33 +305,26 @@
                 
                 const zoom = map.getZoom();
                 const center = map.getCenter();
-                let targetKey = null;
-
-                if (terrainData.germany && terrainData.germany.bounds.bavaria && L.latLngBounds(terrainData.germany.bounds.bavaria).contains(center)) {
-                    const logic = terrainData.germany.logic.bavaria;
-                    if (zoom >= 15) { targetKey = logic['15']; } 
-                    else if (zoom >= 14) { targetKey = logic['14']; } 
-                    else { targetKey = logic['0']; }
-                }
-                else if (terrainData.austria && terrainData.austria.bounds.austria && L.latLngBounds(terrainData.austria.bounds.austria).contains(center)) {
-                    targetKey = terrainData.austria.logic.austria['0'];
-                }
-                else if (terrainData.switzerland && terrainData.switzerland.bounds.switzerland && L.latLngBounds(terrainData.switzerland.bounds.switzerland).contains(center)) {
-                    targetKey = terrainData.switzerland.logic.switzerland['0'];
-                }
-                else if (terrainData.italy && terrainData.italy.bounds.italy && L.latLngBounds(terrainData.italy.bounds.italy).contains(center)) {
-                    targetKey = terrainData.italy.logic.italy['0'];
-                }
-                else if (terrainData.germany && terrainData.germany.bounds.germany && L.latLngBounds(terrainData.germany.bounds.germany).contains(center)) {
-                    targetKey = terrainData.germany.logic.germany['0'];
-                }
+                // Ordered finest -> coarsest; coarser layers show through where finer ones are empty.
+                const targetKeys = resolveTerrainLayerKey(center, zoom);
 
                 for (const key in terrainLayers) {
-                    terrainLayers[key].setOpacity(key === targetKey ? currentTerrainOpacity : 0);
+                    const layer = terrainLayers[key];
+                    if (targetKeys.includes(key)) {
+                        if (!map.hasLayer(layer)) layer.addTo(map);
+                    } else if (map.hasLayer(layer)) {
+                        map.removeLayer(layer);
+                    }
                 }
-                
+                // Stack order: bring the coarsest to the front first so the finest ends on top.
+                for (let i = targetKeys.length - 1; i >= 0; i--) {
+                    terrainLayers[targetKeys[i]].bringToFront();
+                }
+                // Opacity is applied once to the whole pane, so stacked layers composite exactly.
+                map.getPane('terrainPane').style.opacity = currentTerrainOpacity;
+
                 const mapContainer = map.getContainer();
-                let filterStyle = (zoom >= 15 && targetKey) ? 'brightness(70%) contrast(120%)' : 'none';
+                let filterStyle = (zoom >= 15 && targetKeys.length) ? 'brightness(70%) contrast(120%)' : 'none';
                 mapContainer.style.filter = filterStyle;
             }
 
@@ -238,6 +363,17 @@
                     map.removeLayer(borderLayers[layerId]);
                     delete borderLayers[layerId];
                 }
+            };
+
+            // Which terrain layers the current view would show at each zoom level (based on the
+            // map centre), plus the visible bbox. Used by the offline tile downloader.
+            window.getTerrainPlanForView = function(minZoom, maxZoom) {
+                const b = map.getBounds();
+                const stacks = {};
+                for (let z = minZoom; z <= maxZoom; z++) {
+                    stacks[z] = resolveTerrainLayerKey(map.getCenter(), z);
+                }
+                return { bbox: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()], zoom: map.getZoom(), stacks: stacks };
             };
 
             window.getMapState = function() {

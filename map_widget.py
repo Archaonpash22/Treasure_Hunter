@@ -41,10 +41,13 @@ class MapBridge(QObject):
 
 
 class MapWidget(QWidget):
-    def __init__(self, terrain_data, parent=None):
+    def __init__(self, terrain_data, tile_proxy=None, parent=None):
         super().__init__(parent)
         self.bridge = MapBridge()
         self.terrain_data = terrain_data
+        # Local tile cache proxy (tile_cache.py): {'host': '127.0.0.1', 'ports': [...]}.
+        # None = fetch terrain tiles directly from the upstream services.
+        self.tile_proxy = tile_proxy
         self.init_ui()
         self.create_map_html_file()
         self.load_map()
@@ -69,6 +72,7 @@ class MapWidget(QWidget):
         icons_json = json.dumps(map_assets.icons)
         colors_json = json.dumps(map_assets.culture_colors)
         terrain_data_json = json.dumps(self.terrain_data)
+        tile_proxy_json = json.dumps(self.tile_proxy)
 
         html_content = f"""
         <!DOCTYPE html>
@@ -108,6 +112,7 @@ class MapWidget(QWidget):
             var borderLayers = {{}};
             
             const terrainData = {terrain_data_json};
+            const tileProxy = {tile_proxy_json};
             const icons_data = {icons_json};
             const cultureColors = {colors_json};
             const icons = {{}};
@@ -212,12 +217,27 @@ class MapWidget(QWidget):
                         if (!terrainLayers[layerKey]) {{
                             const layerInfo = country.layers[layerKey];
                             let layerOptions = {{ ...layerInfo.options, ...paneOption }};
-                            if (layerInfo.url.includes('{{z}}')) {{
+                            if (tileProxy && tileProxy.ports && tileProxy.ports.length) {{
+                                // Local cache proxy builds the upstream request itself (see tile_cache.py).
+                                // The ports act like tile-server subdomains to get around the browser's
+                                // per-host connection limit.
+                                const tileTemplate = 'http://' + tileProxy.host + ':{{s}}/tile/' + layerKey + '/{{z}}/{{x}}/{{y}}.png';
+                                const proxyOptions = {{ ...layerOptions, subdomains: tileProxy.ports.map(String) }};
+                                if (layerInfo.type === 'wms_crop') {{
+                                    terrainLayers[layerKey] = L.gridLayer.wmsCropped(tileTemplate, {{ ...proxyOptions, tileTemplate: true }});
+                                }} else {{
+                                    terrainLayers[layerKey] = L.tileLayer(tileTemplate, proxyOptions);
+                                }}
+                            }} else if (layerInfo.type === 'arcgis_image') {{
+                                terrainLayers[layerKey] = L.tileLayer.arcgisImage(layerInfo.url, layerOptions);
+                            }} else if (layerInfo.type === 'wms_crop') {{
+                                terrainLayers[layerKey] = L.gridLayer.wmsCropped(layerInfo.url, layerOptions);
+                            }} else if (layerInfo.url.includes('{{z}}')) {{
                                 terrainLayers[layerKey] = L.tileLayer(layerInfo.url, layerOptions);
                             }} else {{
                                 terrainLayers[layerKey] = L.tileLayer.wms(layerInfo.url, layerOptions);
                             }}
-                            terrainLayers[layerKey].setOpacity(0).addTo(map);
+                            // Added to the map on demand by updateAutoTerrain().
                         }}
                     }}
                 }}
@@ -240,10 +260,126 @@ class MapWidget(QWidget):
 
     def get_full_js_functions(self):
         return """
+            // Tile layer for ArcGIS Image Services (exportImage endpoint). Each Leaflet tile is
+            // requested as a Web-Mercator bbox, optionally with a server-side renderingRule
+            // (e.g. Hillshade), so DTM services can be shown as relief without local processing.
+            L.TileLayer.ArcGISImage = L.TileLayer.extend({
+                initialize: function(serviceUrl, options) {
+                    options = options || {};
+                    this._serviceUrl = serviceUrl.endsWith('/') ? serviceUrl.slice(0, -1) : serviceUrl;
+                    this._renderingRule = options.renderingRule ? JSON.stringify(options.renderingRule) : null;
+                    this._imageFormat = options.imageFormat || 'png';
+                    L.TileLayer.prototype.initialize.call(this, serviceUrl, options);
+                },
+                getTileUrl: function(coords) {
+                    const tileSize = this.getTileSize();
+                    const nwPoint = coords.scaleBy(tileSize);
+                    const sePoint = nwPoint.add(tileSize);
+                    const nw = L.CRS.EPSG3857.project(this._map.unproject(nwPoint, coords.z));
+                    const se = L.CRS.EPSG3857.project(this._map.unproject(sePoint, coords.z));
+                    const params = {
+                        f: 'image',
+                        bbox: [nw.x, se.y, se.x, nw.y].join(','),
+                        bboxSR: 3857,
+                        imageSR: 3857,
+                        size: tileSize.x + ',' + tileSize.y,
+                        format: this._imageFormat,
+                        transparent: true
+                    };
+                    if (this._renderingRule) params.renderingRule = this._renderingRule;
+                    return this._serviceUrl + '/exportImage' + L.Util.getParamString(params);
+                }
+            });
+            L.tileLayer.arcgisImage = (serviceUrl, options) => new L.TileLayer.ArcGISImage(serviceUrl, options);
+
+            // WMS layer that requests each tile `cropLeft` pixels wider than needed and draws it
+            // shifted left onto a canvas, cutting off a watermark strip some servers paint along
+            // the left edge of every image (e.g. Regione Toscana's Geoscopio WMS).
+            L.GridLayer.WMSCropped = L.GridLayer.extend({
+                initialize: function(url, options) {
+                    options = options || {};
+                    this._wmsUrl = url;
+                    this._cropLeft = options.cropLeft || 0;
+                    this._wmsParams = {
+                        service: 'WMS', request: 'GetMap', version: options.version || '1.1.1',
+                        layers: options.layers || '', styles: options.styles || '',
+                        format: options.format || 'image/png', transparent: options.transparent !== false,
+                        srs: 'EPSG:3857'
+                    };
+                    L.GridLayer.prototype.initialize.call(this, options);
+                },
+                createTile: function(coords, done) {
+                    const tile = document.createElement('canvas');
+                    const size = this.getTileSize();
+                    tile.width = size.x; tile.height = size.y;
+                    const crop = this._cropLeft;
+                    const nwPoint = coords.scaleBy(size).subtract([crop, 0]);
+                    const sePoint = coords.scaleBy(size).add(size);
+                    const nw = L.CRS.EPSG3857.project(this._map.unproject(nwPoint, coords.z));
+                    const se = L.CRS.EPSG3857.project(this._map.unproject(sePoint, coords.z));
+                    const params = { ...this._wmsParams, width: size.x + crop, height: size.y, bbox: [nw.x, se.y, se.x, nw.y].join(',') };
+                    const img = new Image();
+                    img.onload = () => { tile.getContext('2d').drawImage(img, -crop, 0); done(null, tile); };
+                    img.onerror = () => done(new Error('tile load failed'), tile);
+                    if (this.options.tileTemplate) {
+                        const subdomains = this.options.subdomains || [''];
+                        const s = subdomains[Math.abs(coords.x + coords.y) % subdomains.length];
+                        img.src = L.Util.template(this._wmsUrl, { s: s, z: coords.z, x: coords.x, y: coords.y });
+                    } else {
+                        img.src = this._wmsUrl + L.Util.getParamString(params, this._wmsUrl);
+                    }
+                    return tile;
+                }
+            });
+            L.gridLayer.wmsCropped = (url, options) => new L.GridLayer.WMSCropped(url, options);
+
+            // Regions are checked in this order; the first whose bounds contain the map centre wins.
+            // Regions defined in the country modules but missing here are checked afterwards.
+            const terrainRegionPriority = [
+                ['germany', 'bavaria'],
+                ['austria', 'austria'],
+                ['switzerland', 'switzerland'],
+                ['italy', 'elba'],
+                ['italy', 'lunigiana'],
+                ['italy', 'emilia_romagna'],
+                ['italy', 'tuscany'],
+                ['italy', 'italy'],
+                ['germany', 'germany']
+            ];
+
+            function pickLayerForZoom(logic, zoom) {
+                if (!logic) return null;
+                const thresholds = Object.keys(logic).map(Number).filter(n => !isNaN(n)).sort((a, b) => b - a);
+                for (const t of thresholds) {
+                    if (zoom >= t) return logic[String(t)];
+                }
+                return null;
+            }
+
+            function resolveTerrainLayerKey(center, zoom) {
+                const candidates = terrainRegionPriority.slice();
+                for (const countryName in terrainData) {
+                    for (const regionName in (terrainData[countryName].bounds || {})) {
+                        if (!candidates.some(c => c[0] === countryName && c[1] === regionName)) {
+                            candidates.push([countryName, regionName]);
+                        }
+                    }
+                }
+                for (const [countryName, regionName] of candidates) {
+                    const country = terrainData[countryName];
+                    if (!country || !country.bounds || !country.bounds[regionName]) continue;
+                    if (!L.latLngBounds(country.bounds[regionName]).contains(center)) continue;
+                    const picked = pickLayerForZoom(country.logic && country.logic[regionName], zoom);
+                    const keys = (Array.isArray(picked) ? picked : [picked]).filter(k => k && terrainLayers[k]);
+                    if (keys.length) return keys;
+                }
+                return [];
+            }
+
             function updateAutoTerrain() {
                 if (!isTerrainAutoMode) {
                     for (const key in terrainLayers) {
-                        if (terrainLayers[key].setOpacity) terrainLayers[key].setOpacity(0);
+                        if (map.hasLayer(terrainLayers[key])) map.removeLayer(terrainLayers[key]);
                     }
                     map.getContainer().style.filter = 'none';
                     return;
@@ -251,33 +387,26 @@ class MapWidget(QWidget):
                 
                 const zoom = map.getZoom();
                 const center = map.getCenter();
-                let targetKey = null;
-
-                if (terrainData.germany && terrainData.germany.bounds.bavaria && L.latLngBounds(terrainData.germany.bounds.bavaria).contains(center)) {
-                    const logic = terrainData.germany.logic.bavaria;
-                    if (zoom >= 15) { targetKey = logic['15']; } 
-                    else if (zoom >= 14) { targetKey = logic['14']; } 
-                    else { targetKey = logic['0']; }
-                }
-                else if (terrainData.austria && terrainData.austria.bounds.austria && L.latLngBounds(terrainData.austria.bounds.austria).contains(center)) {
-                    targetKey = terrainData.austria.logic.austria['0'];
-                }
-                else if (terrainData.switzerland && terrainData.switzerland.bounds.switzerland && L.latLngBounds(terrainData.switzerland.bounds.switzerland).contains(center)) {
-                    targetKey = terrainData.switzerland.logic.switzerland['0'];
-                }
-                else if (terrainData.italy && terrainData.italy.bounds.italy && L.latLngBounds(terrainData.italy.bounds.italy).contains(center)) {
-                    targetKey = terrainData.italy.logic.italy['0'];
-                }
-                else if (terrainData.germany && terrainData.germany.bounds.germany && L.latLngBounds(terrainData.germany.bounds.germany).contains(center)) {
-                    targetKey = terrainData.germany.logic.germany['0'];
-                }
+                // Ordered finest -> coarsest; coarser layers show through where finer ones are empty.
+                const targetKeys = resolveTerrainLayerKey(center, zoom);
 
                 for (const key in terrainLayers) {
-                    terrainLayers[key].setOpacity(key === targetKey ? currentTerrainOpacity : 0);
+                    const layer = terrainLayers[key];
+                    if (targetKeys.includes(key)) {
+                        if (!map.hasLayer(layer)) layer.addTo(map);
+                    } else if (map.hasLayer(layer)) {
+                        map.removeLayer(layer);
+                    }
                 }
-                
+                // Stack order: bring the coarsest to the front first so the finest ends on top.
+                for (let i = targetKeys.length - 1; i >= 0; i--) {
+                    terrainLayers[targetKeys[i]].bringToFront();
+                }
+                // Opacity is applied once to the whole pane, so stacked layers composite exactly.
+                map.getPane('terrainPane').style.opacity = currentTerrainOpacity;
+
                 const mapContainer = map.getContainer();
-                let filterStyle = (zoom >= 15 && targetKey) ? 'brightness(70%) contrast(120%)' : 'none';
+                let filterStyle = (zoom >= 15 && targetKeys.length) ? 'brightness(70%) contrast(120%)' : 'none';
                 mapContainer.style.filter = filterStyle;
             }
 
@@ -316,6 +445,17 @@ class MapWidget(QWidget):
                     map.removeLayer(borderLayers[layerId]);
                     delete borderLayers[layerId];
                 }
+            };
+
+            // Which terrain layers the current view would show at each zoom level (based on the
+            // map centre), plus the visible bbox. Used by the offline tile downloader.
+            window.getTerrainPlanForView = function(minZoom, maxZoom) {
+                const b = map.getBounds();
+                const stacks = {};
+                for (let z = minZoom; z <= maxZoom; z++) {
+                    stacks[z] = resolveTerrainLayerKey(map.getCenter(), z);
+                }
+                return { bbox: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()], zoom: map.getZoom(), stacks: stacks };
             };
 
             window.getMapState = function() {

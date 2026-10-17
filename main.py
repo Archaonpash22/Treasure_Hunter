@@ -16,7 +16,8 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLineEdit, QPushButton, QLabel, QMessageBox, QStatusBar, QSlider,
     QTextEdit, QComboBox, QListWidget, QListWidgetItem, QDialog,
-    QDialogButtonBox, QFormLayout, QCheckBox, QFrame, QMenu
+    QDialogButtonBox, QFormLayout, QCheckBox, QFrame, QMenu, QSpinBox,
+    QProgressDialog
 )
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import QFile, QTextStream, Qt, pyqtSignal, QThread
@@ -32,6 +33,7 @@ from assets.countries.europe import germany as germany_assets
 from assets.countries.europe import austria as austria_assets
 from assets.countries.europe import switzerland as switzerland_assets
 from assets.countries.europe import italy as italy_assets
+from tile_cache import TileCacheServer, TileDownloadThread, plan_download
 
 class UrlFetcherThread(QThread):
     """ A QThread to fetch data from a URL in the background without freezing the UI. """
@@ -128,6 +130,9 @@ class TreasureHunterApp(QMainWindow):
         self.current_location = None
         self.border_fetcher_thread = None
         self.url_fetcher_threads = {}
+        self.tile_cache_server = None
+        self.tile_download_thread = None
+        self.download_progress = None
         
         self.init_ui()
         self.setStatusBar(QStatusBar(self))
@@ -238,7 +243,19 @@ class TreasureHunterApp(QMainWindow):
                 'logic': italy_assets.layer_logic
             }
         }
-        self.map_widget = MapWidget(terrain_data)
+        # Local tile cache: all terrain tiles are fetched through it and kept on disk
+        # (tile_cache/), so visited areas also work offline.
+        tile_proxy = None
+        try:
+            cache_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tile_cache")
+            self.tile_cache_server = TileCacheServer(terrain_data, cache_dir)
+            self.tile_cache_server.start()
+            tile_proxy = self.tile_cache_server.proxy_info
+            self.add_log(f"Gelände-Kachel-Cache aktiv (Ports {', '.join(map(str, tile_proxy['ports']))}, Ordner: {cache_dir})")
+        except Exception as e:
+            self.tile_cache_server = None
+            self.add_log(f"Kachel-Cache konnte nicht gestartet werden, Kacheln werden direkt geladen: {e}")
+        self.map_widget = MapWidget(terrain_data, tile_proxy=tile_proxy)
         
         self.map_widget.bridge.log_requested.connect(self.add_log)
         self.map_widget.bridge.map_ready.connect(self.on_map_ready)
@@ -286,6 +303,23 @@ class TreasureHunterApp(QMainWindow):
         self.regions_menu = border_menu.addMenu("Regions")
         self.populate_regions_menu()
         
+        cache_menu = menu_bar.addMenu("&Gelände-Cache")
+        cache_menu.aboutToShow.connect(self.handle_menu_show)
+        cache_menu.aboutToHide.connect(self.handle_menu_hide)
+        download_action = QAction("Aktuellen Kartenausschnitt herunterladen...", self)
+        download_action.triggered.connect(self.start_tile_download_dialog)
+        cache_menu.addAction(download_action)
+        self.offline_action = QAction("Offline-Modus (nur Cache verwenden)", self, checkable=True)
+        self.offline_action.toggled.connect(self.toggle_offline_mode)
+        cache_menu.addAction(self.offline_action)
+        cache_menu.addSeparator()
+        cache_info_action = QAction("Cache-Info anzeigen", self)
+        cache_info_action.triggered.connect(self.show_cache_info)
+        cache_menu.addAction(cache_info_action)
+        open_cache_action = QAction("Cache-Ordner öffnen", self)
+        open_cache_action.triggered.connect(self.open_cache_folder)
+        cache_menu.addAction(open_cache_action)
+
         debug_menu = menu_bar.addMenu("&Debug")
         dev_tools_action = QAction("Open Remote Debugger", self)
         dev_tools_action.triggered.connect(self.open_remote_debugger)
@@ -633,6 +667,129 @@ class TreasureHunterApp(QMainWindow):
         if self.markers:
             self.map_widget.update_all_markers(list(self.markers.values()))
 
+    # ------------------------------------------------------------- terrain tile cache
+
+    def toggle_offline_mode(self, is_checked):
+        if not self.tile_cache_server:
+            return
+        self.tile_cache_server.cache.offline = is_checked
+        self.add_log("Offline-Modus aktiv: nur gespeicherte Gelände-Kacheln werden angezeigt."
+                     if is_checked else "Offline-Modus aus: fehlende Kacheln werden wieder aus dem Internet geladen.")
+
+    def show_cache_info(self):
+        if not self.tile_cache_server:
+            QMessageBox.information(self, "Gelände-Cache", "Der Kachel-Cache ist nicht aktiv.")
+            return
+        info = self.tile_cache_server.cache.summary()
+        lines = [f"Ordner: {info['cache_dir']}",
+                 f"Gesamt: {info['tiles']} Kacheln, {info['bytes'] / 1_000_000:.1f} MB", ""]
+        for key, data in sorted(info['layers'].items()):
+            lines.append(f"{key}: {data['tiles']} Kacheln, {data['bytes'] / 1_000_000:.1f} MB")
+        session = info['session']
+        lines += ["", f"Diese Sitzung: {session['hits']} aus Cache, {session['network']} geladen, {session['errors']} Fehler"]
+        if info.get('last_errors'):
+            lines += ["", "Letzte Fehler:"] + info['last_errors'][-5:]
+        QMessageBox.information(self, "Gelände-Cache", "\n".join(lines))
+
+    def open_cache_folder(self):
+        if not self.tile_cache_server:
+            return
+        folder = self.tile_cache_server.cache.cache_dir
+        os.makedirs(folder, exist_ok=True)
+        try:
+            os.startfile(folder)
+        except OSError as e:
+            QMessageBox.warning(self, "Gelände-Cache", f"Ordner konnte nicht geöffnet werden: {e}")
+
+    def start_tile_download_dialog(self):
+        if not self.tile_cache_server:
+            QMessageBox.information(self, "Gelände-Cache", "Der Kachel-Cache ist nicht aktiv.")
+            return
+        if self.tile_download_thread and self.tile_download_thread.isRunning():
+            QMessageBox.information(self, "Gelände-Cache", "Es läuft bereits ein Download.")
+            return
+        self.map_widget.run_js("window.getTerrainPlanForView(0, 20);", self._show_download_dialog)
+
+    def _show_download_dialog(self, plan):
+        if not plan or not plan.get('stacks'):
+            QMessageBox.warning(self, "Gelände-Cache", "Kartenausschnitt konnte nicht ermittelt werden.")
+            return
+        cache = self.tile_cache_server.cache
+        bbox = tuple(plan['bbox'])
+        stacks = plan['stacks']
+        current_zoom = int(plan.get('zoom', 13))
+        if not any(stacks.get(str(z)) or stacks.get(z) for z in range(0, 21)):
+            QMessageBox.information(self, "Gelände-Cache",
+                                    "Für diesen Kartenausschnitt ist keine Gelände-Überlagerung definiert.")
+            return
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Gelände-Kacheln herunterladen")
+        form = QFormLayout(dialog)
+        info_label = QLabel("Lädt alle Gelände-Kacheln (LiDAR/DTM) des sichtbaren Kartenausschnitts "
+                            "für den gewählten Zoom-Bereich in den lokalen Cache.")
+        info_label.setWordWrap(True)
+        form.addRow(info_label)
+        min_spin = QSpinBox(); min_spin.setRange(0, 20); min_spin.setValue(max(10, min(current_zoom, 17)))
+        max_spin = QSpinBox(); max_spin.setRange(0, 20); max_spin.setValue(max(min_spin.value(), min(17, current_zoom + 3)))
+        form.addRow("Von Zoom:", min_spin)
+        form.addRow("Bis Zoom:", max_spin)
+        estimate_label = QLabel()
+        form.addRow("Umfang:", estimate_label)
+
+        def update_estimate():
+            lo, hi = min_spin.value(), max_spin.value()
+            if lo > hi:
+                estimate_label.setText("Ungültiger Bereich")
+                return
+            jobs = plan_download(cache, bbox, stacks, lo, hi)
+            cached = sum(1 for j in jobs if cache.has(*j))
+            estimate_label.setText(f"{len(jobs)} Kacheln, davon {cached} bereits gespeichert "
+                                   f"(ca. {max(len(jobs) - cached, 0) * 0.04:.0f} MB neu)")
+        min_spin.valueChanged.connect(update_estimate)
+        max_spin.valueChanged.connect(update_estimate)
+        update_estimate()
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        form.addRow(buttons)
+        if not dialog.exec():
+            return
+
+        jobs = plan_download(cache, bbox, stacks, min_spin.value(), max_spin.value())
+        if not jobs:
+            QMessageBox.information(self, "Gelände-Cache", "Keine Kacheln zu laden.")
+            return
+        if len(jobs) > 20000:
+            answer = QMessageBox.question(self, "Gelände-Cache",
+                                          f"{len(jobs)} Kacheln sind sehr viele. Trotzdem starten?")
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+
+        self.download_progress = QProgressDialog("Lade Gelände-Kacheln...", "Abbrechen", 0, len(jobs), self)
+        self.download_progress.setWindowTitle("Gelände-Cache")
+        self.download_progress.setMinimumDuration(0)
+        self.download_progress.setValue(0)
+        self.tile_download_thread = TileDownloadThread(cache, jobs)
+        self.tile_download_thread.progress.connect(self._on_download_progress)
+        self.tile_download_thread.finished_summary.connect(self._on_download_finished)
+        self.download_progress.canceled.connect(self.tile_download_thread.stop)
+        self.add_log(f"Starte Download von {len(jobs)} Gelände-Kacheln (Zoom {min_spin.value()}-{max_spin.value()}).")
+        self.tile_download_thread.start()
+
+    def _on_download_progress(self, done, total, failed):
+        if self.download_progress:
+            self.download_progress.setLabelText(f"Lade Gelände-Kacheln... {done}/{total} ({failed} Fehler)")
+            self.download_progress.setValue(done)
+
+    def _on_download_finished(self, summary):
+        if self.download_progress:
+            self.download_progress.reset()
+            self.download_progress = None
+        self.add_log(summary)
+        self.statusBar().showMessage(summary, 10000)
+
     def closeEvent(self, event):
         """ Handles the window close event to ensure clean shutdown of threads. """
         self.add_log("Anwendung wird beendet... Warte auf Threads.")
@@ -647,6 +804,12 @@ class TreasureHunterApp(QMainWindow):
             if thread.isRunning():
                 thread.stop()
                 thread.wait()
+
+        if self.tile_download_thread and self.tile_download_thread.isRunning():
+            self.tile_download_thread.stop()
+            self.tile_download_thread.wait()
+        if self.tile_cache_server:
+            self.tile_cache_server.stop()
 
         self.add_log("Alle Threads beendet. Anwendung wird geschlossen.")
         event.accept()
