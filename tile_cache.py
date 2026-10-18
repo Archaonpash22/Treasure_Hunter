@@ -27,7 +27,8 @@ USER_AGENT = "TreasureHunter/1.0 (local tile cache)"
 # Tiles this small are (nearly) empty images. Outside a layer's coverage that is correct,
 # but overloaded WMS servers (e.g. the MASE LiDAR service) sometimes answer a request
 # inside the coverage with an empty image too. Such tiles are retried once right away
-# and re-checked once they are older than BLANK_RECHECK_SECONDS.
+# and re-checked once they are older than BLANK_RECHECK_SECONDS. Layers that are legitimately
+# empty over large areas (e.g. a German state's LiDAR outside the state) set 'retryBlank': False.
 BLANK_MAX_BYTES = 1024
 BLANK_RECHECK_SECONDS = 24 * 3600
 
@@ -43,6 +44,20 @@ def tile_bounds_3857(z, x, y, pad_left_px=0):
     maxy = ORIGIN_SHIFT - y * size
     miny = ORIGIN_SHIFT - (y + 1) * size
     return minx, miny, maxx, maxy
+
+
+def tile_size_of(layer_info):
+    """Pixel size of a layer's tiles: 256, or 512 for WMS layers that set 'tileSize': 512.
+
+    A 512 px tile at map zoom z covers the same area as the 256 px tile (z - 1, x, y), so
+    the tile grid of zoom z - 1 is used to address it. Bigger tiles mean far fewer requests
+    to slow WMS servers (a 512 px image takes ~1.5x as long as a 256 px one, for 4x the area).
+    """
+    return int(layer_info.get('options', {}).get('tileSize', TILE_SIZE))
+
+
+def zoom_shift(tile_size):
+    return int(round(math.log2(tile_size / TILE_SIZE)))
 
 
 def lonlat_to_tile(lon, lat, z):
@@ -68,11 +83,14 @@ def build_upstream_url(layer_info, z, x, y):
     opts = layer_info.get('options', {})
     layer_type = layer_info.get('type')
 
+    size = tile_size_of(layer_info)
+    gz = z - zoom_shift(size)  # zoom of the 256 px grid that addresses this tile
+
     if layer_type == 'arcgis_image':
-        minx, miny, maxx, maxy = tile_bounds_3857(z, x, y)
+        minx, miny, maxx, maxy = tile_bounds_3857(gz, x, y)
         params = {
             'f': 'image', 'bbox': f"{minx},{miny},{maxx},{maxy}", 'bboxSR': 3857, 'imageSR': 3857,
-            'size': f"{TILE_SIZE},{TILE_SIZE}", 'format': opts.get('imageFormat', 'png'), 'transparent': 'true'
+            'size': f"{size},{size}", 'format': opts.get('imageFormat', 'png'), 'transparent': 'true'
         }
         if opts.get('renderingRule'):
             params['renderingRule'] = json.dumps(opts['renderingRule'])
@@ -84,7 +102,7 @@ def build_upstream_url(layer_info, z, x, y):
 
     # WMS, optionally widened to the west so the page can crop a watermark strip away
     crop = int(opts.get('cropLeft', 0)) if layer_type == 'wms_crop' else 0
-    minx, miny, maxx, maxy = tile_bounds_3857(z, x, y, pad_left_px=crop)
+    minx, miny, maxx, maxy = tile_bounds_3857(gz, x, y, pad_left_px=crop * TILE_SIZE / size)
     version = str(opts.get('version', '1.1.1'))
     # The SRS must come before the bbox: MapServer (e.g. the MASE LiDAR WMS) returns an
     # empty image for some tiles when bbox is listed first. Leaflet uses this order too.
@@ -93,7 +111,7 @@ def build_upstream_url(layer_info, z, x, y):
         'layers': opts.get('layers', ''), 'styles': opts.get('styles', ''),
         'format': opts.get('format', 'image/png'),
         'transparent': 'true' if opts.get('transparent', True) else 'false',
-        'width': TILE_SIZE + crop, 'height': TILE_SIZE,
+        'width': size + crop, 'height': size,
         'crs' if version == '1.3.0' else 'srs': 'EPSG:3857',
         'bbox': f"{minx},{miny},{maxx},{maxy}",
     }
@@ -134,7 +152,9 @@ class TileCache:
         return None, None, reason
 
     def path_for(self, key, z, x, y):
-        return os.path.join(self.cache_dir, key, str(z), str(x), f"{y}.png")
+        size = tile_size_of(self.layers.get(key, {}))
+        folder = key if size == TILE_SIZE else f"{key}@{size}"  # different tile grid, own folder
+        return os.path.join(self.cache_dir, folder, str(z), str(x), f"{y}.png")
 
     def has(self, key, z, x, y):
         return os.path.isfile(self.path_for(key, z, x, y))
@@ -164,6 +184,7 @@ class TileCache:
         if not info:
             return None, None, f'unknown layer {key}'
         url = build_upstream_url(info, z, x, y)
+        retry_blank = info.get('options', {}).get('retryBlank', True)
         for attempt in range(2):
             try:
                 response = self.session.get(url, timeout=(10, 90))
@@ -174,7 +195,7 @@ class TileCache:
                 error = None
                 if response.status_code != 200 or not content_type.startswith('image/'):
                     error = f'upstream {response.status_code} {content_type[:40]}'
-            if error or len(response.content) > BLANK_MAX_BYTES or attempt:
+            if error or len(response.content) > BLANK_MAX_BYTES or attempt or not retry_blank:
                 break
             time.sleep(1)  # empty image: give the server one more try
         if error:
@@ -261,7 +282,9 @@ class _TileHandler(BaseHTTPRequestHandler):
             if data is None:
                 self._send(404, source.encode('utf-8', 'replace'), 'text/plain', [('Cache-Control', 'no-store')])
                 return
-            self._send(200, data, content_type, [('Cache-Control', 'max-age=3600'), ('X-Tile-Source', source)])
+            # CORS lets the page read tile pixels on a canvas (layers with 'whiteToAlpha').
+            self._send(200, data, content_type, [('Cache-Control', 'max-age=3600'), ('X-Tile-Source', source),
+                                                 ('Access-Control-Allow-Origin', '*')])
             return
         self._send(404, b'not found', 'text/plain')
 
@@ -338,7 +361,7 @@ def plan_download(cache, bbox, stacks, min_zoom, max_zoom):
                 s, w, n, e = max(s, bs), max(w, bw), min(n, bn), min(e, be)
                 if s >= n or w >= e:
                     continue
-            for x, y in tiles_in_bbox(s, w, n, e, tz):
+            for x, y in tiles_in_bbox(s, w, n, e, tz - zoom_shift(tile_size_of(info))):
                 job = (key, tz, x, y)
                 if job not in seen:
                     seen.add(job)

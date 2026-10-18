@@ -225,22 +225,26 @@ class TreasureHunterApp(QMainWindow):
             'germany': {
                 'layers': germany_assets.terrain_layers,
                 'bounds': germany_assets.bounds,
-                'logic': germany_assets.layer_logic
+                'logic': germany_assets.layer_logic,
+                'outlines': getattr(germany_assets, 'outlines', {})
             },
             'austria': {
                 'layers': austria_assets.terrain_layers,
                 'bounds': austria_assets.bounds,
-                'logic': austria_assets.layer_logic
+                'logic': austria_assets.layer_logic,
+                'outlines': getattr(austria_assets, 'outlines', {})
             },
             'switzerland': {
                 'layers': switzerland_assets.terrain_layers,
                 'bounds': switzerland_assets.bounds,
-                'logic': switzerland_assets.layer_logic
+                'logic': switzerland_assets.layer_logic,
+                'outlines': getattr(switzerland_assets, 'outlines', {})
             },
             'italy': {
                 'layers': italy_assets.terrain_layers,
                 'bounds': italy_assets.bounds,
-                'logic': italy_assets.layer_logic
+                'logic': italy_assets.layer_logic,
+                'outlines': getattr(italy_assets, 'outlines', {})
             }
         }
         # Local tile cache: all terrain tiles are fetched through it and kept on disk

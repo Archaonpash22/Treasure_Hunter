@@ -95,6 +95,11 @@ class MapWidget(QWidget):
                 .poi-popup-content img {{ max-width: 100%; height: auto; border-radius: 4px; margin-bottom: 8px; }}
                 .poi-popup-content a {{ color: #007bff; text-decoration: none; }}
                 .poi-popup-content a:hover {{ text-decoration: underline; }}
+                .region-label {{
+                    position: absolute; transform: translate(-50%, -50%); white-space: nowrap;
+                    background: rgba(255, 255, 255, 0.75); border: 1px solid #008000; border-radius: 3px;
+                    padding: 1px 4px; font: bold 12px sans-serif; color: #005000;
+                }}
             </style>
         </head>
         <body>
@@ -216,7 +221,9 @@ class MapWidget(QWidget):
                     for (const layerKey in country.layers) {{
                         if (!terrainLayers[layerKey]) {{
                             const layerInfo = country.layers[layerKey];
-                            let layerOptions = {{ ...layerInfo.options, ...paneOption }};
+                            // Keep more off-screen tiles and skip the intermediate zoom levels while a zoom
+                            // animation runs: the WMS servers are slow, so every saved request counts.
+                            let layerOptions = {{ keepBuffer: 4, updateWhenZooming: false, ...layerInfo.options, ...paneOption }};
                             if (tileProxy && tileProxy.ports && tileProxy.ports.length) {{
                                 // Local cache proxy builds the upstream request itself (see tile_cache.py).
                                 // The ports act like tile-server subdomains to get around the browser's
@@ -300,12 +307,13 @@ class MapWidget(QWidget):
                     options = options || {};
                     this._wmsUrl = url;
                     this._cropLeft = options.cropLeft || 0;
+                    const version = options.version || '1.1.1';
                     this._wmsParams = {
-                        service: 'WMS', request: 'GetMap', version: options.version || '1.1.1',
+                        service: 'WMS', request: 'GetMap', version: version,
                         layers: options.layers || '', styles: options.styles || '',
-                        format: options.format || 'image/png', transparent: options.transparent !== false,
-                        srs: 'EPSG:3857'
+                        format: options.format || 'image/png', transparent: options.transparent !== false
                     };
+                    this._wmsParams[version === '1.3.0' ? 'crs' : 'srs'] = 'EPSG:3857';
                     L.GridLayer.prototype.initialize.call(this, options);
                 },
                 createTile: function(coords, done) {
@@ -319,7 +327,24 @@ class MapWidget(QWidget):
                     const se = L.CRS.EPSG3857.project(this._map.unproject(sePoint, coords.z));
                     const params = { ...this._wmsParams, width: size.x + crop, height: size.y, bbox: [nw.x, se.y, se.x, nw.y].join(',') };
                     const img = new Image();
-                    img.onload = () => { tile.getContext('2d').drawImage(img, -crop, 0); done(null, tile); };
+                    const whiteToAlpha = this.options.whiteToAlpha;
+                    if (whiteToAlpha) img.crossOrigin = 'anonymous';
+                    img.onload = () => {
+                        const ctx = tile.getContext('2d');
+                        ctx.drawImage(img, -crop, 0);
+                        // Some services paint everything outside their state opaque white.
+                        if (whiteToAlpha) {
+                            try {
+                                const data = ctx.getImageData(0, 0, tile.width, tile.height);
+                                const px = data.data;
+                                for (let i = 0; i < px.length; i += 4) {
+                                    if (px[i] >= 254 && px[i + 1] >= 254 && px[i + 2] >= 254) px[i + 3] = 0;
+                                }
+                                ctx.putImageData(data, 0, 0);
+                            } catch (e) { /* no CORS (direct mode): show the tile as it is */ }
+                        }
+                        done(null, tile);
+                    };
                     img.onerror = () => done(new Error('tile load failed'), tile);
                     if (this.options.tileTemplate) {
                         const subdomains = this.options.subdomains || [''];
@@ -336,15 +361,14 @@ class MapWidget(QWidget):
             // Regions are checked in this order; the first whose bounds contain the map centre wins.
             // Regions defined in the country modules but missing here are checked afterwards.
             const terrainRegionPriority = [
-                ['germany', 'bavaria'],
+                ['germany', 'germany'],
                 ['austria', 'austria'],
                 ['switzerland', 'switzerland'],
                 ['italy', 'elba'],
                 ['italy', 'lunigiana'],
                 ['italy', 'emilia_romagna'],
                 ['italy', 'tuscany'],
-                ['italy', 'italy'],
-                ['germany', 'germany']
+                ['italy', 'italy']
             ];
 
             function pickLayerForZoom(logic, zoom) {
@@ -369,11 +393,25 @@ class MapWidget(QWidget):
                     const country = terrainData[countryName];
                     if (!country || !country.bounds || !country.bounds[regionName]) continue;
                     if (!L.latLngBounds(country.bounds[regionName]).contains(center)) continue;
+                    // Optional outline for regions a rectangle fits badly (Germany vs. its neighbours).
+                    const outline = country.outlines && country.outlines[regionName];
+                    if (outline && !outline.some(ring => pointInRing(center, ring))) continue;
                     const picked = pickLayerForZoom(country.logic && country.logic[regionName], zoom);
                     const keys = (Array.isArray(picked) ? picked : [picked]).filter(k => k && terrainLayers[k]);
                     if (keys.length) return keys;
                 }
                 return [];
+            }
+
+            // Ray casting; ring is a list of [lat, lon].
+            function pointInRing(latlng, ring) {
+                let inside = false;
+                for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+                    const [yi, xi] = ring[i], [yj, xj] = ring[j];
+                    if ((yi > latlng.lat) !== (yj > latlng.lat) &&
+                        latlng.lng < (xj - xi) * (latlng.lat - yi) / (yj - yi) + xi) inside = !inside;
+                }
+                return inside;
             }
 
             function updateAutoTerrain() {
@@ -388,7 +426,12 @@ class MapWidget(QWidget):
                 const zoom = map.getZoom();
                 const center = map.getCenter();
                 // Ordered finest -> coarsest; coarser layers show through where finer ones are empty.
-                const targetKeys = resolveTerrainLayerKey(center, zoom);
+                // Layers whose coverage is out of view stay off the map (no requests, no attribution).
+                const view = map.getBounds().pad(0.25);
+                const targetKeys = resolveTerrainLayerKey(center, zoom).filter(k => {
+                    const b = terrainLayers[k].options.bounds;
+                    return !b || L.latLngBounds(b).intersects(view);
+                });
 
                 for (const key in terrainLayers) {
                     const layer = terrainLayers[key];
@@ -434,10 +477,41 @@ class MapWidget(QWidget):
                 if (borderLayers[layerId]) {
                     map.removeLayer(borderLayers[layerId]);
                 }
-                borderLayers[layerId] = L.geoJSON(geoJsonData, {
+                const labels = L.layerGroup();
+                const regions = L.geoJSON(geoJsonData, {
                     style: { color: '#008000', weight: 2, fillOpacity: 0.05, interactive: false },
-                    pane: 'borderPane'
-                }).addTo(map);
+                    pane: 'borderPane',
+                    renderer: borderRenderer || (borderRenderer = L.canvas({ pane: 'borderPane', padding: 0.5 })),
+                    onEachFeature: (feature, layer) => {
+                        const props = feature.properties || {};
+                        const code = regionAbbreviation(props);
+                        if (!code) return;
+                        const id = props.id || props.iso_3166_2;
+                        const pos = regionLabelPositions[id] || layer.getBounds().getCenter();
+                        labels.addLayer(L.marker(pos, {
+                            interactive: false, keyboard: false, pane: 'borderPane',
+                            icon: L.divIcon({ className: '', html: '<span class="region-label">' + code + '</span>', iconSize: null })
+                        }));
+                    }
+                });
+                borderLayers[layerId] = L.layerGroup([regions, labels]).addTo(map);
+            };
+
+            // Detailed borders have hundreds of thousands of vertices; canvas draws them much
+            // faster than SVG while panning and zooming. Created on first use (the pane must exist).
+            let borderRenderer = null;
+
+            // Short code for a region feature, e.g. "BW" from the ISO 3166-2 id "DE-BW".
+            function regionAbbreviation(props) {
+                const iso = props.id || props.iso_3166_2 || '';
+                const m = /^[A-Z]{2}-([A-Z0-9]{1,3})$/.exec(iso);
+                if (m) return m[1];
+                return props.postal || props.abbreviation || '';
+            }
+
+            // Labels whose bbox centre would land on another region (Brandenburg -> Berlin).
+            const regionLabelPositions = {
+                'DE-BB': [52.0, 13.6]
             };
 
             window.removeBorderLayer = function(layerId) {
