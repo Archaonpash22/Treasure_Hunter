@@ -194,3 +194,14 @@ layer_logic = {
         "0": 'it_dtm'
     }
 }
+
+# What the terrain panel lists (see germany.py). The regional layers are not clipped to
+# region outlines yet, so these entries carry a bounding box for "zoom to region".
+country = {'id': 'IT', 'name': 'Italien'}
+base_relief = {'layers': ['it_dtm'], 'name': 'Grundrelief', 'resolution': '10 m', 'source': 'INGV TINITALY'}
+regions = [
+    {'id': 'IT-45', 'name': 'Emilia-Romagna', 'layers': ['er_lidar_05m', 'er_dtm5m'], 'resolution': '50 cm',
+     'source': 'Regione Emilia-Romagna', 'bounds': _ER_BOX},
+    {'id': 'IT-52', 'name': 'Toscana', 'layers': ['tos_lidar_1m', 'tos_mase_1m', 'tos_mase_2m', 'tos_dsm_1m'],
+     'resolution': '1 m', 'source': 'Regione Toscana, MASE', 'bounds': _TOSCANA_BOX},
+]

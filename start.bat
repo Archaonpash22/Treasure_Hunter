@@ -77,6 +77,4 @@ REM Deaktiviere die virtuelle Umgebung (wird ausgefuehrt, nachdem das App-Fenste
 echo Deaktiviere die virtuelle Umgebung...
 call "%VENV_DIR%\Scripts\deactivate.bat"
 
-echo.
-echo Die Anwendung wurde beendet. Druecken Sie eine beliebige Taste zum Schliessen.
-pause >nul
+REM Kein "pause" am Ende: das Konsolenfenster schliesst sich mit der App und bleibt nicht als Leiche offen.

@@ -3,3 +3,4 @@ tile_cache/
 __pycache__/
 *.pyc
 border_cache/
+tools/_cache/

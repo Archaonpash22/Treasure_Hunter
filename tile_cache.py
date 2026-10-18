@@ -6,6 +6,7 @@ stores the answer under  tile_cache/<layer>/<z>/<x>/<y>.png  and serves it from 
 on every later request. Areas you have looked at once therefore keep working without
 internet, and a bulk downloader can pre-fill the cache for a map area and zoom range.
 """
+import bisect
 import collections
 import json
 import math
@@ -19,6 +20,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import requests
 from requests.adapters import HTTPAdapter
+
+import dem_analysis
+import dem_shade
 from PyQt6.QtCore import QThread, pyqtSignal
 
 ORIGIN_SHIFT = 20037508.342789244  # half the circumference of the Web-Mercator world
@@ -69,6 +73,68 @@ def lonlat_to_tile(lon, lat, z):
     return min(max(x, 0), n - 1), min(max(y, 0), n - 1)
 
 
+def _lonlat_to_tile_float(lon, lat, n):
+    lat = max(min(lat, 85.05112878), -85.05112878)
+    lat_r = math.radians(lat)
+    return ((lon + 180.0) / 360.0 * n,
+            (1.0 - math.log(math.tan(lat_r) + 1.0 / math.cos(lat_r)) / math.pi) / 2.0 * n)
+
+
+def polygon_tile_rows(rings, z):
+    """Tiles of zoom z touched by the polygon(s), as {row y: [(x_first, x_last), ...]}.
+
+    rings: list of [[lat, lon], ...] rings (outer rings and holes, even-odd rule).
+    Interior tiles come from scanlines through the tile centres, tiles crossed by the border
+    from walking every edge. Runs are kept per row so millions of tiles stay cheap to count.
+    """
+    n = 2 ** z
+    crossings = collections.defaultdict(list)
+    border = collections.defaultdict(set)
+    for ring in rings:
+        pts = [_lonlat_to_tile_float(lon, lat, n) for lat, lon in ring]
+        for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1]):
+            steps = int(max(abs(x1 - x0), abs(y1 - y0)) * 4) + 1
+            for i in range(steps + 1):
+                t = i / steps
+                border[int(y0 + (y1 - y0) * t)].add(int(x0 + (x1 - x0) * t))
+            if y0 == y1:
+                continue
+            lo, hi = (y0, y1) if y0 < y1 else (y1, y0)
+            for row in range(math.ceil(lo - 0.5), math.ceil(hi - 0.5)):
+                yc = row + 0.5
+                crossings[row].append(x0 + (yc - y0) * (x1 - x0) / (y1 - y0))
+    rows = {}
+    for row in set(crossings) | set(border):
+        runs = []
+        xs = sorted(crossings.get(row, ()))
+        for a, b in zip(xs[0::2], xs[1::2]):
+            first, last = math.ceil(a - 0.5), math.floor(b - 0.5)
+            if first <= last:
+                runs.append((first, last))
+        runs.extend((x, x) for x in border.get(row, ()))
+        runs.sort()
+        merged = []
+        for first, last in runs:
+            if merged and first <= merged[-1][1] + 1:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], last))
+            else:
+                merged.append((first, last))
+        rows[row] = merged
+    return rows
+
+
+def _in_rows(rows, x, y):
+    runs = rows.get(y)
+    if not runs:
+        return False
+    i = bisect.bisect_right(runs, (x, float('inf'))) - 1
+    return i >= 0 and runs[i][0] <= x <= runs[i][1]
+
+
+def count_tile_rows(rows):
+    return sum(last - first + 1 for runs in rows.values() for first, last in runs)
+
+
 def tiles_in_bbox(south, west, north, east, z):
     x0, y0 = lonlat_to_tile(west, north, z)
     x1, y1 = lonlat_to_tile(east, south, z)
@@ -95,6 +161,14 @@ def build_upstream_url(layer_info, z, x, y):
         if opts.get('renderingRule'):
             params['renderingRule'] = json.dumps(opts['renderingRule'])
         return url.rstrip('/') + '/exportImage?' + urllib.parse.urlencode(params)
+
+    if layer_type == 'arcgis_map':  # ArcGIS MapServer without WMS: /export
+        minx, miny, maxx, maxy = tile_bounds_3857(gz, x, y)
+        params = {
+            'f': 'image', 'bbox': f"{minx},{miny},{maxx},{maxy}", 'bboxSR': 3857, 'imageSR': 3857,
+            'size': f"{size},{size}", 'format': opts.get('imageFormat', 'png'), 'transparent': 'false'
+        }
+        return url.rstrip('/') + '/export?' + urllib.parse.urlencode(params)
 
     if '{z}' in url:  # plain XYZ / WMTS-REST template
         return (url.replace('{z}', str(z)).replace('{x}', str(x)).replace('{y}', str(y))
@@ -127,9 +201,14 @@ def build_upstream_url(layer_info, z, x, y):
 class TileCache:
     def __init__(self, terrain_data, cache_dir):
         self.layers = {}
+        self.outlines = {}
         for country in terrain_data.values():
             for key, info in country.get('layers', {}).items():
                 self.layers.setdefault(key, info)
+            self.outlines.update(country.get('outlines', {}))
+        self._clip_rows = {}
+        self._clip_lock = threading.Lock()
+        self._heights = None   # height tile source of the analysis layers, created on first use
         self.cache_dir = cache_dir
         self.offline = False
         self.stats = {'hits': 0, 'network': 0, 'errors': 0}
@@ -150,6 +229,18 @@ class TileCache:
             self.stats['errors'] += 1
             self.last_errors.append(f"{key} {z}/{x}/{y}: {reason}")
         return None, None, reason
+
+    def clip_rows(self, codes, z):
+        """polygon_tile_rows() of the states in codes at grid zoom z (cached)."""
+        cache_key = (tuple(codes), z)
+        with self._clip_lock:
+            rows = self._clip_rows.get(cache_key)
+        if rows is None:
+            rings = [ring for code in codes for ring in self.outlines.get(code, [])]
+            rows = polygon_tile_rows(rings, z)
+            with self._clip_lock:
+                self._clip_rows[cache_key] = rows
+        return rows
 
     def path_for(self, key, z, x, y):
         size = tile_size_of(self.layers.get(key, {}))
@@ -183,6 +274,10 @@ class TileCache:
         info = self.layers.get(key)
         if not info:
             return None, None, f'unknown layer {key}'
+        if info.get('type') in dem_shade.DEM_TYPES:
+            return self._get_dem_tile(key, info, z, x, y, path, cached)
+        if info.get('type') == 'dem_analysis':
+            return self._get_analysis_tile(key, info, z, x, y, path)
         url = build_upstream_url(info, z, x, y)
         retry_blank = info.get('options', {}).get('retryBlank', True)
         for attempt in range(2):
@@ -205,6 +300,42 @@ class TileCache:
         self._store(path, response.content)
         self._count('network')
         return response.content, content_type.split(';')[0], 'network'
+
+    def _get_dem_tile(self, key, info, z, x, y, path, cached):
+        """Fetch heights for the tile and shade them locally (see dem_shade.py)."""
+        if not dem_shade.available():
+            return self._fail(key, z, x, y, 'numpy/Pillow fehlen (pip install -r requirements.txt)')
+        size = tile_size_of(info)
+        url, bbox, res = dem_shade.request_url(info, z - zoom_shift(size), x, y, size)
+        try:
+            response = self.session.get(url, timeout=(10, 120))
+            if response.status_code != 200:
+                raise ValueError(f'upstream {response.status_code}')
+            data = dem_shade.shade(response.content, bbox, res, size, info.get('options', {}),
+                                   terrarium=info.get('type') == 'dem_terrarium')
+        except Exception as exc:  # network errors, error XML instead of a TIFF, broken images
+            if cached is not None:
+                return cached, self._content_type(cached), 'cache'
+            return self._fail(key, z, x, y, str(exc)[:120])
+        self._store(path, data)
+        self._count('network')
+        return data, 'image/jpeg', 'network'
+
+    def _get_analysis_tile(self, key, info, z, x, y, path):
+        """Local relief / multi-hillshade / sky-view / slope from height tiles (see dem_analysis.py)."""
+        if not dem_analysis.available():
+            return self._fail(key, z, x, y, 'numpy/Pillow fehlen (pip install -r requirements.txt)')
+        if self._heights is None:
+            self._heights = dem_analysis.HeightSource(info['url'], os.path.join(self.cache_dir, '_heights'), self.session)
+        try:
+            data = dem_analysis.tile_jpeg(info['options']['analysis'], self._heights, z - 1, x, y)
+        except Exception as exc:
+            return self._fail(key, z, x, y, str(exc)[:120])
+        if data is None:
+            return None, None, 'keine Höhendaten'
+        self._store(path, data)
+        self._count('network')
+        return data, 'image/jpeg', 'network'
 
     def _store(self, path, data):
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -339,15 +470,18 @@ class TileCacheServer:
 def plan_download(cache, bbox, stacks, min_zoom, max_zoom):
     """List the (layer, z, x, y) tiles needed for bbox=(south, west, north, east).
 
-    stacks maps a zoom level (int or str) to the layer keys the map would show there.
-    Each layer is clipped to its own 'bounds' option so nothing is fetched outside coverage.
+    stacks maps a zoom level (int or str) to the layers the map would show there: a layer key, or
+    [key, codes] when the page cuts the layer to fewer regions than its 'clipTo' (regions switched
+    off, or the base relief only filling gaps). Each layer is clipped to its own 'bounds' option and
+    to those region polygons, so nothing is fetched outside coverage.
     """
     south, west, north, east = bbox
     jobs = []
     seen = set()
     for z in range(min_zoom, max_zoom + 1):
         keys = stacks.get(z) or stacks.get(str(z)) or []
-        for key in keys:
+        for entry in keys:
+            key, clip = (entry[0], entry[1]) if isinstance(entry, (list, tuple)) else (entry, None)
             info = cache.layers.get(key)
             if not info:
                 continue
@@ -361,7 +495,12 @@ def plan_download(cache, bbox, stacks, min_zoom, max_zoom):
                 s, w, n, e = max(s, bs), max(w, bw), min(n, bn), min(e, be)
                 if s >= n or w >= e:
                     continue
-            for x, y in tiles_in_bbox(s, w, n, e, tz - zoom_shift(tile_size_of(info))):
+            gz = tz - zoom_shift(tile_size_of(info))
+            clip = clip or info.get('options', {}).get('clipTo')
+            rows = cache.clip_rows(clip, gz) if clip else None
+            for x, y in tiles_in_bbox(s, w, n, e, gz):
+                if rows is not None and not _in_rows(rows, x, y):
+                    continue  # tile does not touch the layer's state; the page never requests it
                 job = (key, tz, x, y)
                 if job not in seen:
                     seen.add(job)

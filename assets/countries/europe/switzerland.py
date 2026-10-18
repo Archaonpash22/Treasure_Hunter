@@ -27,3 +27,10 @@ layer_logic = {
         "0": 'ch_dtm' # Use this layer at all zoom levels when inside the switzerland bounds
     }
 }
+
+# What the terrain panel lists (see germany.py).
+country = {'id': 'CH', 'name': 'Schweiz'}
+regions = [
+    {'id': 'CH', 'name': 'Ganze Schweiz', 'layers': ['ch_dtm'], 'resolution': '50 cm', 'source': 'swisstopo',
+     'bounds': bounds['switzerland']},
+]
