@@ -50,6 +50,7 @@
   function update() {
     if (!state.ready) return;
     var pane = map.getPane('terrainPane');
+    if (!pane) return;
     var show = state.enabled;
     el.div.style.display = el.l.style.display = el.r.style.display = show ? 'block' : 'none';
     if (!show) { pane.style.clipPath = ''; return; }
@@ -62,8 +63,11 @@
   }
 
   window.setCompareMode = function (enabled) {
-    if (!state.ready) build();
     state.enabled = !!enabled;
+    if (!state.ready) {
+      if (typeof map === 'undefined' || !map || !map.getContainer) return;
+      build();
+    }
     if (state.enabled && !isTerrainAutoMode) window.setTerrainAutoMode(true);
     update();
   };

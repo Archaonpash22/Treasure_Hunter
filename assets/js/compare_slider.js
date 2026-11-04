@@ -16,7 +16,7 @@
     var localX = clampRatio(ratio) * w - (panePosX || 0);
     var clip = { left: OVERSCAN, top: OVERSCAN, right: OVERSCAN, bottom: OVERSCAN };
     if (lidarSide === 'right') clip.left = localX;
-    else clip.right = w - localX;
+    else clip.right = 0 - localX; // pane is 0x0: visible x <= localX needs a negative right inset
     return clip;
   }
 
