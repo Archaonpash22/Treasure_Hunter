@@ -105,7 +105,13 @@ class MapWidget(QWidget):
 
         icons_json = json.dumps(map_assets.icons)
         colors_json = json.dumps(map_assets.culture_colors)
-        terrain_data_json = json.dumps(self.terrain_data)
+        # With the tile cache running, the page only gets the national outlines; the detailed region borders
+        # (several MB per country) are fetched from the cache when a layer clipped to them is first shown.
+        page_data = self.terrain_data
+        if self.tile_proxy:
+            page_data = {key: {**d, 'outlines': {k: v for k, v in d.get('outlines', {}).items() if k in d.get('bounds', {})}}
+                         for key, d in self.terrain_data.items()}
+        terrain_data_json = json.dumps(page_data)
         tile_proxy_json = json.dumps(self.tile_proxy)
 
         html_content = f"""
@@ -302,7 +308,8 @@ class MapWidget(QWidget):
                                 const tileTemplate = 'http://' + tileProxy.host + ':{{s}}/tile/' + layerKey + '/{{z}}/{{x}}/{{y}}.png';
                                 const proxyOptions = {{ ...layerOptions, subdomains: tileProxy.ports.map(String) }};
                                 if (layerInfo.type === 'wms_crop' || layerInfo.options.clipTo) {{
-                                    terrainLayers[layerKey] = L.gridLayer.wmsCropped(tileTemplate, {{ ...proxyOptions, tileTemplate: true }});
+                                    // The tile cache already crops watermark strips away (wms_crop), so draw tiles as they come.
+                                    terrainLayers[layerKey] = L.gridLayer.wmsCropped(tileTemplate, {{ ...proxyOptions, tileTemplate: true, cropLeft: 0 }});
                                 }} else {{
                                     terrainLayers[layerKey] = L.tileLayer(tileTemplate, proxyOptions);
                                 }}
@@ -407,6 +414,26 @@ class MapWidget(QWidget):
             });
             L.tileLayer.arcgisImage = (serviceUrl, options) => new L.TileLayer.ArcGISImage(serviceUrl, options);
 
+            // Outlines known to the page: the national ones come with the page, region borders are fetched
+            // from the tile cache on first use (ensureOutlines), then the terrain stack is rebuilt.
+            const loadedOutlines = {};
+            for (const c in terrainData) Object.assign(loadedOutlines, terrainData[c].outlines || {});
+            const outlinePending = {};
+            function ensureOutlines(codes) {
+                const missing = codes.filter(c => !loadedOutlines[c]);
+                if (!missing.length) return true;
+                if (!tileProxy) return false;
+                const toFetch = missing.filter(c => !outlinePending[c]);
+                if (toFetch.length) {
+                    toFetch.forEach(c => { outlinePending[c] = true; });
+                    fetch('http://' + tileProxy.host + ':' + tileProxy.ports[0] + '/outlines?codes=' + encodeURIComponent(toFetch.join(',')))
+                        .then(r => r.json())
+                        .then(d => { Object.assign(loadedOutlines, d); updateAutoTerrain(); reportView(); })
+                        .catch(() => toFetch.forEach(c => { delete outlinePending[c]; }));
+                }
+                return false;
+            }
+
             // State borders for layers with `clipTo`, projected once to zoom-0 world pixels and cut
             // into chunks of up to 128 edges with bounding boxes, so a tile can be classified as
             // inside / outside / on the border without walking every vertex.
@@ -416,8 +443,8 @@ class MapWidget(QWidget):
                 if (clipShapes[id]) return clipShapes[id];
                 const rings = [], chunks = [];
                 for (const code of codes) {
-                    for (const countryName in terrainData) {
-                        const rs = (terrainData[countryName].outlines || {})[code];
+                    {
+                        const rs = loadedOutlines[code];
                         if (!rs) continue;
                         for (const r of rs) {
                             const pts = new Float64Array(r.length * 2);
@@ -565,10 +592,6 @@ class MapWidget(QWidget):
                 ['germany', 'germany'],
                 ['austria', 'austria'],
                 ['switzerland', 'switzerland'],
-                ['italy', 'elba'],
-                ['italy', 'lunigiana'],
-                ['italy', 'emilia_romagna'],
-                ['italy', 'tuscany'],
                 ['italy', 'italy']
             ];
 
@@ -705,6 +728,10 @@ class MapWidget(QWidget):
                     const b = terrainLayers[p.key].options.bounds;
                     return !b || L.latLngBounds(b).intersects(view);
                 });
+                // A layer waits until the borders it is cut to have arrived (they load in the background).
+                for (let i = plan.length - 1; i >= 0; i--) {
+                    if (plan[i].clip && !ensureOutlines(plan[i].clip)) plan.splice(i, 1);
+                }
                 plan.forEach(p => applyLayerClip(terrainLayers[p.key], p.clip, zoom));
                 const targetKeys = plan.map(p => p.key);
 
@@ -1034,7 +1061,7 @@ class MapWidget(QWidget):
             function describeHere() {
                 const c = map.getCenter();
                 for (const { country, region } of regionIndex) {
-                    const rings = country.outlines && country.outlines[region.id];
+                    const rings = loadedOutlines[region.id];
                     const inside = rings ? pointInRings(c, rings)
                                          : region.bounds && L.latLngBounds(region.bounds).contains(c);
                     if (!inside) continue;

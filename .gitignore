@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 border_cache/
 tools/_cache/
+tile_cache/

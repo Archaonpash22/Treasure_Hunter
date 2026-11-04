@@ -139,8 +139,14 @@ def shade(data, bbox, res, size, opts, terrarium=False):
     az, alt = math.radians(AZIMUTH), math.radians(ALTITUDE)
     lx, ly, lz = math.sin(az) * math.cos(alt), math.cos(az) * math.cos(alt), math.sin(alt)
     hs = (-dzdx * lx - dzdn * ly + lz) / np.sqrt(dzdx * dzdx + dzdn * dzdn + 1)
+    nodata = np.isnan(hs)[pad:pad + size, pad:pad + size]
     hs = np.where(np.isnan(hs), lz, hs)   # no data: flat grey, the page clips it to the state anyway
     out = (np.clip(hs, 0, 1) * 255).astype(np.uint8)[pad:pad + size, pad:pad + size]
     buf = io.BytesIO()
-    Image.fromarray(out, 'L').save(buf, 'JPEG', quality=88)
+    if opts.get('transparentNoData') and nodata.any():
+        # Gaps (buildings, water in a terrain model) stay see-through, so a coarser layer below shows.
+        alpha = np.where(nodata, 0, 255).astype(np.uint8)
+        Image.merge('LA', (Image.fromarray(out, 'L'), Image.fromarray(alpha, 'L'))).save(buf, 'PNG')
+    else:
+        Image.fromarray(out, 'L').save(buf, 'JPEG', quality=88)
     return buf.getvalue()

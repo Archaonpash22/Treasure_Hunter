@@ -1,5 +1,6 @@
 """The side panels: map (base map, LiDAR per country and region, borders), sites, finds, offline."""
 import os
+import re
 
 from PyQt6.QtCore import QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QBrush, QColor, QFont
@@ -38,12 +39,12 @@ def _bounds_intersect(a, b):
 
 
 def _resolution_rank(text):
-    """Sort key / colour class for a resolution like '25 cm' or '2 m'."""
-    if not text:
+    """Sort key / colour class for a resolution like '25 cm', '2 m' or a range '0,1-1 m' (ranked by its best)."""
+    m = re.match(r'\s*(\d+(?:[.,]\d+)?)\s*(?:[-–]\s*[\d.,]+\s*)?(cm|m)\b', text or '')
+    if not m:
         return 99.0
-    value, unit = text.split()
-    value = float(value.replace(',', '.'))
-    return value / 100 if unit == 'cm' else value
+    value = float(m.group(1).replace(',', '.'))
+    return value / 100 if m.group(2) == 'cm' else value
 
 
 class LidarSection(QWidget):

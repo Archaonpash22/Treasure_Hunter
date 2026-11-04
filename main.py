@@ -29,6 +29,30 @@ from assets.countries.europe import germany as germany_assets
 from assets.countries.europe import austria as austria_assets
 from assets.countries.europe import switzerland as switzerland_assets
 from assets.countries.europe import italy as italy_assets
+from assets.countries.europe import netherlands as netherlands_assets
+from assets.countries.europe import croatia as croatia_assets
+from assets.countries.europe import france as france_assets
+from assets.countries.europe import spain as spain_assets
+from assets.countries.europe import portugal as portugal_assets
+from assets.countries.europe import slovenia as slovenia_assets
+from assets.countries.europe import czechia as czechia_assets
+from assets.countries.europe import slovakia as slovakia_assets
+from assets.countries.europe import belgium as belgium_assets
+from assets.countries.europe import luxembourg as luxembourg_assets
+from assets.countries.europe import denmark as denmark_assets
+from assets.countries.europe import poland as poland_assets
+from assets.countries.europe import hungary as hungary_assets
+from assets.countries.europe import romania as romania_assets
+from assets.countries.europe import bulgaria as bulgaria_assets
+from assets.countries.europe import ireland as ireland_assets
+from assets.countries.europe import greece as greece_assets
+from assets.countries.europe import cyprus as cyprus_assets
+from assets.countries.europe import malta as malta_assets
+from assets.countries.europe import sweden as sweden_assets
+from assets.countries.europe import finland as finland_assets
+from assets.countries.europe import estonia as estonia_assets
+from assets.countries.europe import latvia as latvia_assets
+from assets.countries.europe import lithuania as lithuania_assets
 import process_guard
 import dem_analysis
 from tile_cache import TileCacheServer, TileDownloadThread, plan_download
@@ -44,6 +68,30 @@ COUNTRY_MODULES = {
     'austria': austria_assets,
     'switzerland': switzerland_assets,
     'italy': italy_assets,
+    'netherlands': netherlands_assets,
+    'croatia': croatia_assets,
+    'france': france_assets,
+    'spain': spain_assets,
+    'portugal': portugal_assets,
+    'slovenia': slovenia_assets,
+    'czechia': czechia_assets,
+    'slovakia': slovakia_assets,
+    'belgium': belgium_assets,
+    'luxembourg': luxembourg_assets,
+    'denmark': denmark_assets,
+    'poland': poland_assets,
+    'hungary': hungary_assets,
+    'romania': romania_assets,
+    'bulgaria': bulgaria_assets,
+    'ireland': ireland_assets,
+    'greece': greece_assets,
+    'cyprus': cyprus_assets,
+    'malta': malta_assets,
+    'sweden': sweden_assets,
+    'finland': finland_assets,
+    'estonia': estonia_assets,
+    'latvia': latvia_assets,
+    'lithuania': lithuania_assets,
 }
 
 
@@ -175,7 +223,9 @@ def build_terrain_data():
             'logic': module.layer_logic,
             'outlines': getattr(module, 'outlines', {}),
             'country': getattr(module, 'country', {'id': key, 'name': key.title()}),
-            'regions': getattr(module, 'regions', []),
+            'regions': [{**r, 'bounds': r.get('bounds') or (_rings_bounds(module.outlines[r['id']])
+                                                            if r['id'] in getattr(module, 'outlines', {}) else None)}
+                        for r in getattr(module, 'regions', [])],
             'base': getattr(module, 'base_relief', None),
         }
     data['analysis'] = {'layers': ANALYSIS_LAYERS, 'bounds': {}, 'logic': {}, 'outlines': {},

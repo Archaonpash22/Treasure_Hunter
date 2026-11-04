@@ -198,6 +198,43 @@ def build_upstream_url(layer_info, z, x, y):
 
 # --------------------------------------------------------------------------- cache
 
+def _crop_watermark(data, content_type, size):
+    """Keep the right-hand size x size of a tile requested wider for a watermark (stores a quarter of the
+    bytes and the page draws it as it is)."""
+    if dem_shade.Image is None:
+        return data, content_type
+    import io
+    try:
+        img = dem_shade.Image.open(io.BytesIO(data))
+        if img.width <= size:
+            return data, content_type
+        img = img.crop((img.width - size, 0, img.width, size))
+        out = io.BytesIO()
+        rgba = img.convert('RGBA')
+        if rgba.getchannel('A').getextrema() == (255, 255):
+            rgba.convert('RGB').save(out, 'JPEG', quality=88)
+            return out.getvalue(), 'image/jpeg'
+        rgba.save(out, 'PNG')
+        return out.getvalue(), 'image/png'
+    except Exception:
+        return data, content_type
+
+
+def _to_grayscale(data, content_type):
+    """Grey version of a tinted hillshade tile (keeps transparency), so all regions look alike."""
+    if dem_shade.Image is None:
+        return data, content_type
+    import io
+    try:
+        rgba = dem_shade.Image.open(io.BytesIO(data)).convert('RGBA')
+        grey, alpha = rgba.convert('L'), rgba.getchannel('A')
+        out = io.BytesIO()
+        (grey if alpha.getextrema() == (255, 255) else dem_shade.Image.merge('LA', (grey, alpha))).save(out, 'PNG')
+        return out.getvalue(), 'image/png'
+    except Exception:
+        return data, content_type
+
+
 class TileCache:
     def __init__(self, terrain_data, cache_dir):
         self.layers = {}
@@ -243,8 +280,11 @@ class TileCache:
         return rows
 
     def path_for(self, key, z, x, y):
-        size = tile_size_of(self.layers.get(key, {}))
+        info = self.layers.get(key, {})
+        size = tile_size_of(info)
         folder = key if size == TILE_SIZE else f"{key}@{size}"  # different tile grid, own folder
+        if info.get('type') == 'wms_crop' and dem_shade.Image is not None:
+            folder += 'c'   # stored already cropped (see _crop_watermark); older uncropped tiles stay apart
         return os.path.join(self.cache_dir, folder, str(z), str(x), f"{y}.png")
 
     def has(self, key, z, x, y):
@@ -297,9 +337,14 @@ class TileCache:
             if cached is not None:  # keep serving the old (empty) tile rather than nothing
                 return cached, self._content_type(cached), 'cache'
             return self._fail(key, z, x, y, error)
-        self._store(path, response.content)
+        data = response.content
+        if info.get('type') == 'wms_crop':
+            data, content_type = _crop_watermark(data, content_type, tile_size_of(info))
+        if info.get('options', {}).get('grayscale'):
+            data, content_type = _to_grayscale(data, content_type)
+        self._store(path, data)
         self._count('network')
-        return response.content, content_type.split(';')[0], 'network'
+        return data, content_type.split(';')[0], 'network'
 
     def _get_dem_tile(self, key, info, z, x, y, path, cached):
         """Fetch heights for the tile and shade them locally (see dem_shade.py)."""
@@ -319,7 +364,7 @@ class TileCache:
             return self._fail(key, z, x, y, str(exc)[:120])
         self._store(path, data)
         self._count('network')
-        return data, 'image/jpeg', 'network'
+        return data, self._content_type(data), 'network'
 
     def _get_analysis_tile(self, key, info, z, x, y, path):
         """Local relief / multi-hillshade / sky-view / slope from height tiles (see dem_analysis.py)."""
@@ -397,6 +442,13 @@ class _TileHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         parts = self.path.split('?')[0].strip('/').split('/')
+        if parts == ['outlines']:
+            query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+            codes = [c for c in (query.get('codes', [''])[0]).split(',') if c]
+            body = json.dumps({c: self.cache.outlines[c] for c in codes if c in self.cache.outlines}).encode('utf-8')
+            self._send(200, body, 'application/json', [('Cache-Control', 'max-age=86400'),
+                                                      ('Access-Control-Allow-Origin', '*')])
+            return
         if parts == ['status']:
             self._send(200, json.dumps(self.cache.summary()).encode('utf-8'), 'application/json',
                        [('Cache-Control', 'no-store')])

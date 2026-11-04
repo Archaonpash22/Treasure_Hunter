@@ -138,19 +138,22 @@ def _multi(sub, ground):
     """Mean of 8 hillshades, 0..1, stretched around the flat-ground value (fixed, so tiles match)."""
     zf = min(max(ground, 1.0) ** 0.3, 4.0)
     hs = np.mean([_hillshade(sub, ground, az, 45, zf) for az in range(0, 360, 45)], axis=0)
-    return np.clip((hs - math.sin(math.radians(45))) * 4.0 + 0.62, 0, 1)
+    # Strong stretch where pixels are fine (decimetre relief), less where they are coarse: at overview zooms
+    # in the mountains every slope is steep and a strong stretch turns the picture black.
+    stretch = min(4.0, max(1.2, 4.0 * (2.0 / max(ground, 2.0)) ** 0.6))
+    return np.clip((hs - math.sin(math.radians(45))) * stretch + 0.62, 0, 1)
 
 
-def _slope(sub, ground):
-    """1 = flat, 0 = steep (40 deg at 1-3 m pixels, 25 deg when coarser)."""
+def _slope(sub, ground, limit=None):
+    """1 = flat, 0 = steep (40 deg at 1-3 m pixels, 25 deg when coarser, or `limit`)."""
     dzdx = np.gradient(sub, axis=1) / ground
     dzdy = np.gradient(sub, axis=0) / ground
     deg = np.degrees(np.arctan(np.hypot(dzdx, dzdy)))
-    return 1 - np.clip(deg / (40.0 if ground < 3 else 25.0), 0, 1) ** 0.8
+    return 1 - np.clip(deg / (limit or (40.0 if ground < 3 else 25.0)), 0, 1) ** 0.8
 
 
-def _svf(sub, ground):
-    """Sky-view factor, 0..1 on a fixed scale (open flat ground = 1); 8 directions, ~10 m radius."""
+def _svf(sub, ground, floor=0.78):
+    """Sky-view factor, 0..1 on a fixed scale (open flat ground = 1, `floor` = black); 8 directions, ~10 m radius."""
     steps = max(3, min(PAD, int(round(10.0 / ground))))
     svf = np.zeros_like(sub)
     for dx, dy in ((1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)):
@@ -160,7 +163,7 @@ def _svf(sub, ground):
             shifted = np.roll(np.roll(sub, -dy * k, axis=0), -dx * k, axis=1)
             best = np.maximum(best, np.arctan((shifted - sub) / (dist * k)))
         svf += np.sin(np.maximum(best, 0))
-    return np.clip((1 - svf / 8 - 0.78) / 0.22, 0, 1) ** 1.5
+    return np.clip((1 - svf / 8 - floor) / (1 - floor), 0, 1) ** 1.5
 
 
 def render(kind, block, size, ground):
@@ -182,10 +185,13 @@ def render(kind, block, size, ground):
         # Like the VAT composite (Kokalj & Somrak 2019): the grey base mixes multi-direction shading
         # (form), sky-view factor (ditches, pits) and slope (edges); the local relief colours it, so
         # raised features turn red and sunken ones blue without hiding the shading.
-        grey = (0.45 * _multi(sub, ground) + 0.35 * _svf(sub, ground) + 0.20 * _slope(sub, ground))[crop]
+        # Wider scales than the single views, so steep mountains stay readable instead of turning black.
+        grey = (0.5 * _multi(sub, ground) + 0.3 * _svf(sub, ground, floor=0.5) +
+                0.2 * _slope(sub, ground, limit=70.0))[crop]
         grey = np.clip((grey - 0.5) * 1.25 + 0.55, 0, 1)
-        colour = _ramp(_lrm(block, s, ground) / (2 * _lrm_span(ground)) + 0.5, LRM_STOPS).astype(np.float32) / 255
-        tint = 0.35 + 0.65 * colour            # white stays neutral, red/blue tint the grey
+        span = max(_lrm_span(ground), ground * 0.6)   # coarse mountain pixels: don't saturate everything
+        colour = _ramp(_lrm(block, s, ground) / (2 * span) + 0.5, LRM_STOPS).astype(np.float32) / 255
+        tint = 0.45 + 0.55 * colour            # white stays neutral, red/blue tint the grey
         return np.clip(grey[..., None] * tint * 255 * 1.08, 0, 255).astype(np.uint8)
     raise ValueError(kind)
 
