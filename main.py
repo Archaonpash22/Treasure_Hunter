@@ -199,6 +199,16 @@ class TreasureHunterApp(QMainWindow):
         self.opacity_slider.setValue(100)
         self.opacity_slider.valueChanged.connect(self.set_terrain_opacity)
         control_layout.addWidget(self.opacity_slider)
+        self.compare_checkbox = QCheckBox("Vergleich (Slider)")
+        self.compare_checkbox.stateChanged.connect(self.toggle_compare_mode)
+        control_layout.addWidget(self.compare_checkbox)
+        control_layout.addWidget(QLabel("LiDAR-Seite"))
+        self.compare_side_combo = QComboBox()
+        self.compare_side_combo.addItems(["Links", "Rechts"])
+        self.compare_side_combo.setCurrentIndex(1)
+        self.compare_side_combo.setEnabled(False)
+        self.compare_side_combo.currentIndexChanged.connect(self.set_compare_side)
+        control_layout.addWidget(self.compare_side_combo)
         
         control_layout.addWidget(self.create_separator())
         marker_label = QLabel("Meine Fundorte")
@@ -452,6 +462,17 @@ class TreasureHunterApp(QMainWindow):
     def toggle_terrain_layer(self, state):
         is_visible = state == Qt.CheckState.Checked.value
         self.map_widget.run_js(f"window.setTerrainAutoMode({str(is_visible).lower()});")
+
+    def toggle_compare_mode(self, state):
+        enabled = state == Qt.CheckState.Checked.value
+        self.compare_side_combo.setEnabled(enabled)
+        if enabled and not self.terrain_checkbox.isChecked():
+            self.terrain_checkbox.setChecked(True)
+        self.map_widget.run_js(f"window.setCompareMode({str(enabled).lower()});")
+
+    def set_compare_side(self, index):
+        side = "left" if index == 0 else "right"
+        self.map_widget.run_js(f"window.setCompareSide('{side}');")
 
     def set_terrain_opacity(self, value):
         self.map_widget.run_js(f"window.setTerrainOpacity({value / 100.0});")
