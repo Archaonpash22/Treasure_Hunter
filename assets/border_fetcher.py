@@ -1,5 +1,12 @@
 import requests
 import json
+import os
+import hashlib
+import time
+
+# Border files hardly ever change; keep a local copy so toggling a layer is instant.
+CACHE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "border_cache")
+CACHE_MAX_AGE = 30 * 24 * 3600
 
 # URL for high-resolution country borders - RESTORED TO WORKING VERSION
 COUNTRIES_URL = "https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson"
@@ -30,8 +37,28 @@ EUROPEAN_COUNTRIES = [
 
 def get_geojson_from_url(url):
     """
-    Fetches GeoJSON data from a given URL.
+    Fetches GeoJSON data from a given URL, served from the local cache when possible.
     """
+    cache_path = os.path.join(CACHE_DIR, hashlib.sha1(url.encode("utf-8")).hexdigest() + ".geojson")
+    if os.path.isfile(cache_path) and time.time() - os.path.getmtime(cache_path) < CACHE_MAX_AGE:
+        try:
+            with open(cache_path, encoding="utf-8") as f:
+                return json.load(f)
+        except (OSError, json.JSONDecodeError):
+            pass
+    data = _download_geojson(url)
+    try:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        tmp = cache_path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        os.replace(tmp, cache_path)
+    except OSError as e:
+        print(f"Could not cache border data: {e}")
+    return data
+
+
+def _download_geojson(url):
     try:
         response = requests.get(url, timeout=30) # Increased timeout for larger files
         response.raise_for_status()

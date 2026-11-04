@@ -14,6 +14,9 @@ icons = {
     'burg': {'iconUrl': 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjIgMjB2LTJoLTJ2Mmgyem0tMi00aDJ2LTJoLTJ2MnptLTQtMi4yVjIwaDR2LTQuMkwxMiAxMi44bC04IDQuNXYtNC40bDEwLjYtNi4ybC0yLjYtMS41TDEyIDJsLTcgNHYxMGMwIDIgMCAyIDIgMmgyMGMwIDIgMCAyIDIgMiAyem0tMTAgMGgybTAtNmgwbS00IDhoNGm0LTZoMGm0IDhoNGm0LTZoMCI+PC9wYXRoPjwvc3ZnPg==', 'iconSize': [32, 32]},
     'bunker': {'iconUrl': 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy52My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgMjJzOC00IDgtMTBWNWwtOC0zLTggM3Y3YzAgNiA4IDEwIDggMTB6Ij48L3BhdGg+PC9zdmc+', 'iconSize': [32, 32]},
     'schanze': {'iconUrl': 'assets/vectors/viereckschanze.svg', 'iconSize': [32, 32]},
+    # The user's markers (start, destination, point, find): pins anchored at their tip.
+    **{f'mk_{k}': {'iconUrl': f'assets/vectors/markers/{k}.svg', 'iconSize': [28, 37], 'iconAnchor': [14, 37],
+                   'popupAnchor': [0, -32]} for k in ('start', 'ziel', 'punkt', 'fund')},
 }
 
 culture_colors = {
