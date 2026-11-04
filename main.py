@@ -344,12 +344,15 @@ class TreasureHunterApp(QMainWindow):
         self.terrain_panel = LidarSection(
             catalog,
             enabled_ids=json.loads(s.value("terrain/enabled_ids", "[]")),
-            opacity=int(s.value("terrain/opacity", 100)))
+            opacity=int(s.value("terrain/opacity", 100)),
+            compare=str(s.value("terrain/compare", "false")).lower() == "true",
+            compare_side=str(s.value("terrain/compare_side", "right")))
         self.terrain_panel.opacity_changed.connect(self.set_terrain_opacity)
         self.terrain_panel.selection_changed.connect(self.set_terrain_selection)
         self.terrain_panel.zoom_requested.connect(
             lambda b: self.map_widget.run_js(f"window.fitBounds({json.dumps(b)});"))
-        self.terrain_panel.layout_.insertWidget(1, self.create_compare_row())
+        self.terrain_panel.compare_toggled.connect(self.set_compare_mode)
+        self.terrain_panel.compare_side_changed.connect(self.set_compare_side)
 
         self.map_panel = MapPanel(border_fetcher.get_country_list(), self.terrain_panel,
                                   base_map=s.value("map/base", "OpenStreetMap"),
@@ -589,6 +592,8 @@ class TreasureHunterApp(QMainWindow):
         self.draw_all_markers_on_map()
         self.map_widget.run_js(f"window.setTerrainSelection({json.dumps(self.terrain_panel.disabled_ids())});")
         self.set_terrain_opacity(self.terrain_panel.opacity.value())
+        self.set_compare_side('left' if self.terrain_panel.compare_side.currentIndex() == 0 else 'right')
+        self.set_compare_mode(self.terrain_panel.compare.isChecked())
         self.set_analysis_opacity(self.analysis_panel.opacity.value())
         if self.analysis_panel.current_view():
             self.set_analysis_view(self.analysis_panel.current_view())
@@ -646,30 +651,14 @@ class TreasureHunterApp(QMainWindow):
     # ------------------------------------------------------------------ terrain
 
 
-    def create_compare_row(self):
-        row = QWidget()
-        lay = QHBoxLayout(row)
-        lay.setContentsMargins(0, 2, 0, 2)
-        self.compare_checkbox = QCheckBox("Vergleich (Slider)")
-        self.compare_checkbox.stateChanged.connect(self.toggle_compare_mode)
-        lay.addWidget(self.compare_checkbox)
-        lay.addStretch()
-        lay.addWidget(QLabel("LiDAR-Seite"))
-        self.compare_side_combo = QComboBox()
-        self.compare_side_combo.addItems(["Links", "Rechts"])
-        self.compare_side_combo.setCurrentIndex(1)
-        self.compare_side_combo.setEnabled(False)
-        self.compare_side_combo.currentIndexChanged.connect(self.set_compare_side)
-        lay.addWidget(self.compare_side_combo)
-        return row
-
-    def toggle_compare_mode(self, state):
-        enabled = state == Qt.CheckState.Checked.value
-        self.compare_side_combo.setEnabled(enabled)
+    def set_compare_mode(self, enabled):
+        self.settings.setValue("terrain/compare", enabled)
+        if enabled and not self.terrain_panel.enabled_ids():
+            self.statusBar().showMessage("Vergleich: noch keine LiDAR-Region gewählt, der Slider zeigt erst mit Auswahl etwas.", 6000)
         self.map_widget.run_js(f"window.setCompareMode({str(enabled).lower()});")
 
-    def set_compare_side(self, index):
-        side = "left" if index == 0 else "right"
+    def set_compare_side(self, side):
+        self.settings.setValue("terrain/compare_side", side)
         self.map_widget.run_js(f"window.setCompareSide('{side}');")
 
     def set_terrain_opacity(self, value):

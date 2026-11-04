@@ -104,6 +104,7 @@ class MapWidget(QWidget):
         """
 
         js_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "js")
+        # Provides window.setCompareMode / setCompareSide / setCompareRatio (CompareSlider clip of terrainPane).
         compare_script_content = ""
         for name in ("compare_slider.js", "compare_overlay.js"):
             with open(os.path.join(js_dir, name), encoding="utf-8") as f:

@@ -52,8 +52,10 @@ class LidarSection(QWidget):
     opacity_changed = pyqtSignal(int)
     selection_changed = pyqtSignal(list)   # ids switched on, e.g. ['DE-BW', 'DE:base']
     zoom_requested = pyqtSignal(list)      # [[south, west], [north, east]]
+    compare_toggled = pyqtSignal(bool)
+    compare_side_changed = pyqtSignal(str)  # 'left' | 'right'
 
-    def __init__(self, catalog, enabled_ids=None, opacity=100):
+    def __init__(self, catalog, enabled_ids=None, opacity=100, compare=False, compare_side='right'):
         super().__init__()
         self.layout_ = QVBoxLayout(self)
         self.layout_.setContentsMargins(0, 0, 0, 0)
@@ -74,6 +76,27 @@ class LidarSection(QWidget):
         lay.addWidget(self.opacity_value)
         self.opacity.valueChanged.connect(self._on_opacity)
         self.add(row)
+
+        crow = QWidget()
+        clay = QHBoxLayout(crow)
+        clay.setContentsMargins(0, 2, 0, 2)
+        self.compare = QCheckBox('Vergleich (Slider)')
+        self.compare.setToolTip('Teilt die Karte: LiDAR auf einer Seite, die Grundkarte auf der anderen. '
+                                'Es muss mindestens eine LiDAR-Region gewählt sein.')
+        clay.addWidget(self.compare)
+        clay.addStretch()
+        clay.addWidget(QLabel('LiDAR-Seite'))
+        self.compare_side = QComboBox()
+        self.compare_side.addItems(['Links', 'Rechts'])
+        self.compare_side.setCurrentIndex(0 if compare_side == 'left' else 1)
+        clay.addWidget(self.compare_side)
+        self.compare.setChecked(compare)
+        self.compare_side.setEnabled(compare)
+        self.compare.toggled.connect(self.compare_side.setEnabled)
+        self.compare.toggled.connect(self.compare_toggled.emit)
+        self.compare_side.currentIndexChanged.connect(
+            lambda i: self.compare_side_changed.emit('left' if i == 0 else 'right'))
+        self.add(crow)
 
         self.empty_hint = self.add(hint('Noch nichts gewählt: ein Land aufklappen und Regionen anhaken. '
                                         'Gold = 50 cm oder feiner. Das Grundrelief füllt den Rest des Landes.'))
